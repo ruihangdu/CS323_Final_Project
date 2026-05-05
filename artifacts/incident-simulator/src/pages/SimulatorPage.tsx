@@ -8,8 +8,12 @@ import {
   useQueryAgent,
   useResetSimulator,
   getGetSimulatorStateQueryKey,
+  ActionRequestAction,
+  AgentRequestAgent,
+  type FeedEvent,
+  type SimulatorState,
+  type ScoreBreakdown,
 } from "@workspace/api-client-react";
-import { ActionRequestAction, AgentRequestAgent } from "@workspace/api-client-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { VariantProps } from "class-variance-authority";
 import { Input } from "@/components/ui/input";
@@ -97,7 +101,7 @@ export default function SimulatorPage() {
   );
 }
 
-function IncidentFeed({ feed }: { feed: any[] }) {
+function IncidentFeed({ feed }: { feed: FeedEvent[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -309,19 +313,19 @@ function AIAgentPanel() {
   );
 }
 
-function ActionPanel({ state }: { state: any }) {
+function ActionPanel({ state }: { state: SimulatorState }) {
   const takeAction = useTakeAction();
   const queryClient = useQueryClient();
 
-  const handleAction = (action: string) => {
-    takeAction.mutate({ data: { action: action as any } }, {
+  const handleAction = (action: ActionRequestAction) => {
+    takeAction.mutate({ data: { action } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
       }
     });
   };
 
-  const ActionBtn = ({ id, label, isTaken, variant = "default", disabled = false }: { id: string, label: string, isTaken: boolean, variant?: VariantProps<typeof buttonVariants>["variant"], disabled?: boolean }) => (
+  const ActionBtn = ({ id, label, isTaken, variant = "default", disabled = false }: { id: ActionRequestAction, label: string, isTaken: boolean, variant?: VariantProps<typeof buttonVariants>["variant"], disabled?: boolean }) => (
     <Button 
       variant={isTaken ? "secondary" : variant} 
       className={`w-full justify-start font-mono text-xs ${isTaken ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -384,7 +388,7 @@ function ActionPanel({ state }: { state: any }) {
   );
 }
 
-function ScorePanel({ score, totalScore }: { score: any, totalScore: number }) {
+function ScorePanel({ score, totalScore }: { score: ScoreBreakdown, totalScore: number }) {
   const ScoreRow = ({ label, value, max }: { label: string, value: number, max: number }) => (
     <div className="flex flex-col gap-1">
       <div className="flex justify-between text-xs font-mono">
