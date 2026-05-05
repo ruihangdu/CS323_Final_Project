@@ -1,0 +1,434 @@
+Below is a ready-to-paste prompt for Replit.
+
+---
+
+## Replit prompt
+
+Build a quick full-stack prototype of an “AI-era incident simulator” training platform.
+
+The app should be a self-contained browser-based simulation where a learner plays the on-call engineer during a production database/data-loss incident inspired by the GitLab database deletion incident. The goal is not to build a real cloud environment, but a realistic closed-loop simulator with state changes, artifacts, AI-agent assistance, decisions, and scoring.
+
+Use a simple stack:
+
+- React frontend
+- Node/Express backend
+- In-memory simulator state, no database required
+- Optional OpenAI integration if `OPENAI_API_KEY` exists
+- If no API key exists, use a fallback mocked/heuristic AI agent
+
+Do not add authentication, billing, deployment complexity, or real cloud/database operations.
+
+---
+
+# Product concept
+
+The learner enters a simulated incident at a fictional SaaS company called **TaskForge**.
+
+At 02:14 AM, production starts failing. Customers report missing projects/tasks. The true root cause is:
+
+> A maintenance script intended for staging ran against production and executed `DROP SCHEMA public CASCADE`. Some backups are invalid, some replicas replayed the destructive transaction, and the learner must safely diagnose and recover.
+
+The platform should train:
+
+- incident triage
+- ambiguity handling
+- use of AI agents
+- verification of AI output
+- safe recovery planning
+- communication
+- postmortem thinking
+
+---
+
+# UI layout
+
+Create a single-page app with five panels:
+
+## 1. Incident Feed
+
+A scrolling timeline of events.
+
+Example initial events:
+
+```text
+02:14 PagerDuty: API 500 rate > 35%
+02:15 Support: Customers report empty dashboards
+02:16 Monitoring: Background jobs failing
+02:17 Slack #support: "Acme Corp says all tasks disappeared"
+02:19 Monitoring: Primary DB disk usage dropped from 1.8TB to 370GB
+```
+
+The feed should update when the user takes actions.
+
+---
+
+## 2. Terminal / Command Console
+
+A text input where the user can run simulated commands.
+
+Support these commands:
+
+```bash
+help
+kubectl get pods
+kubectl logs taskforge-api
+cat /runbooks/backup-restore.md
+cat /runbooks/db-replica-recovery.md
+cat /scripts/fix_replication.sh
+cat /logs/postgres.log
+cat /logs/admin-runner.log
+cat /backups/manifest.json
+metric db.disk_usage
+metric api.500_rate
+metric replica.lag
+git log --since="6 hours ago"
+aws s3 ls s3://taskforge-backups/full/
+```
+
+Return canned but realistic outputs.
+
+Important clues:
+
+`/logs/postgres.log` should include:
+
+```text
+02:10:59 statement: DROP SCHEMA public CASCADE;
+02:11:03 statement: CREATE SCHEMA public;
+02:11:10 statement: GRANT ALL ON SCHEMA public TO taskforge_app;
+user=maint_bot origin=admin-runner-prod-3
+```
+
+`/scripts/fix_replication.sh` should include:
+
+```bash
+TARGET_DB=${TARGET_DB:-staging}
+DB_HOST=${DB_HOST:-staging-db.internal}
+
+psql "postgresql://maint_bot@$DB_HOST/$TARGET_DB" <<SQL
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO taskforge_app;
+SQL
+```
+
+`/logs/admin-runner.log` should include:
+
+```text
+02:09:58 job started: fix_replication.sh
+02:09:59 env TARGET_DB=prod
+02:09:59 env DB_HOST=prod-db.internal
+02:10:00 user=maint_bot
+02:11:15 job completed successfully
+```
+
+`/backups/manifest.json` should include:
+
+```json
+{
+  "full_backups": [
+    {
+      "timestamp": "2026-04-16T00:00:00Z",
+      "location": "s3://taskforge-backups/full/2026-04-16/",
+      "size_gb": 1830,
+      "verified": true
+    },
+    {
+      "timestamp": "2026-04-17T00:00:00Z",
+      "location": "s3://taskforge-backups/full/2026-04-17/",
+      "size_gb": 112,
+      "verified": false
+    }
+  ],
+  "wal_archives": [
+    {
+      "from": "2026-04-16T00:00:00Z",
+      "to": "2026-04-17T01:44:00Z",
+      "complete": true
+    },
+    {
+      "from": "2026-04-17T01:44:00Z",
+      "to": "2026-04-17T02:14:00Z",
+      "complete": false
+    }
+  ]
+}
+```
+
+---
+
+## 3. AI Agent Panel
+
+The learner can chat with AI agents.
+
+Create these agent types:
+
+- DevOps Agent
+- Database Agent
+- Communications Agent
+- Skeptic Agent
+
+Important architecture rule:
+
+> Do not send the entire hidden simulator state to the LLM. The simulator owns truth. The AI can only see information through tool outputs.
+
+Implement backend “tools”:
+
+```js
+searchLogs(query)
+readFile(path)
+queryMetric(metricName)
+inspectBackup(timestamp)
+checkReplica(replicaId)
+listRecentChanges()
+```
+
+The AI should answer with:
+
+- observed facts
+- hypotheses
+- confidence
+- recommended next checks
+- risks
+- citations to artifacts when possible
+
+If `OPENAI_API_KEY` exists, use a real LLM API. If not, use a fallback heuristic agent that returns useful but imperfect responses.
+
+Fallback examples:
+
+If user asks “what happened?” before inspecting logs:
+
+```text
+Possible causes include failed migration, accidental deletion, or replica issue. I recommend checking DB logs, admin-runner logs, recent deploys, and disk usage before taking recovery action.
+```
+
+If user asks about latest backup:
+
+```text
+Do not assume the latest backup is valid. Inspect size, verification status, and restore logs first.
+```
+
+If user asks to promote replica:
+
+```text
+Risk: replicas may have replayed the destructive transaction. Check replica replay position before promotion.
+```
+
+---
+
+## 4. Decision / Action Panel
+
+Add buttons for major actions:
+
+- Declare SEV1
+- Freeze deploys
+- Stop background workers
+- Put app in maintenance mode
+- Snapshot damaged DB
+- Disable `maint_bot`
+- Restore latest backup
+- Restore last verified backup + WAL
+- Promote replica-db-1
+- Inspect replica-db-2
+- Publish status update
+- Close incident
+
+Each action should update simulator state and incident feed.
+
+Some actions are good:
+
+- Declare SEV1
+- Freeze deploys
+- Stop background workers
+- Snapshot damaged DB
+- Disable `maint_bot`
+- Restore last verified backup + WAL
+- Inspect replica-db-2 before using it
+
+Some actions are risky/bad:
+
+- Restore latest backup, because it is invalid
+- Promote replica-db-1, because it replayed the destructive transaction
+- Close incident before root cause/recovery
+- Publish overconfident status update before facts are known
+
+State changes:
+
+- If user restores latest backup, add feed event: “Restore failed after 20 minutes: backup incomplete / verification failed.”
+- If user promotes replica-db-1, add feed event: “Replica promoted, but missing data persists. Replica had replayed DROP SCHEMA.”
+- If user restores last verified backup + WAL, add feed event: “Recovery DB restored to 01:44. Core data validated. Possible data loss window: 01:44–02:10.”
+- If user disables `maint_bot`, add feed event: “maint_bot credentials revoked. Further destructive automation blocked.”
+
+---
+
+## 5. Score / Debrief Panel
+
+Show live scoring and final debrief.
+
+Score categories:
+
+- Diagnosis: 0–20
+- AI Delegation: 0–20
+- Operational Safety: 0–20
+- Recovery: 0–20
+- Communication: 0–10
+- Prevention/Postmortem: 0–10
+
+Track user behavior.
+
+Award points for:
+
+- declaring SEV1
+- freezing deploys
+- checking logs before recovery
+- finding `DROP SCHEMA`
+- identifying `maint_bot`
+- checking backup verification
+- avoiding invalid latest backup
+- avoiding unsafe replica promotion
+- restoring from verified backup + WAL
+- drafting careful customer communication
+
+Subtract points for:
+
+- restoring unverified backup
+- promoting unsafe replica
+- closing incident too early
+- acting without inspecting evidence
+- publishing overconfident updates
+
+At the end, show a debrief:
+
+```text
+Overall Score: 82/100
+
+Diagnosis:
+You correctly identified that the outage was caused by a destructive SQL command from maint_bot, not a failed migration.
+
+Operational Safety:
+You froze deploys, stopped background workers, and snapshotted the damaged DB before attempting recovery.
+
+Recovery:
+You restored from the last verified backup and replayed WAL to 01:44. Remaining data-loss window: 01:44–02:10.
+
+Missed Clues:
+At 02:19, monitoring showed DB disk usage dropped from 1.8TB to 370GB. This was a strong clue of data deletion.
+
+Recommended next challenge:
+Replica Roulette — determine which replica, if any, is safe to promote.
+```
+
+---
+
+# Backend architecture
+
+Create an in-memory simulator state object:
+
+```js
+const state = {
+  time: "02:14",
+  sevDeclared: false,
+  deploysFrozen: false,
+  workersStopped: false,
+  maintenanceMode: false,
+  damagedDbSnapshotted: false,
+  maintBotDisabled: false,
+  rootCauseDiscovered: false,
+  backupInspected: false,
+  latestBackupRestored: false,
+  verifiedBackupRestored: false,
+  replica1Promoted: false,
+  replica2Inspected: false,
+  statusPublished: false,
+  incidentClosed: false,
+  score: {
+    diagnosis: 0,
+    aiDelegation: 0,
+    operationalSafety: 0,
+    recovery: 0,
+    communication: 0,
+    prevention: 0
+  },
+  feed: [...]
+}
+```
+
+Expose API routes:
+
+```http
+GET /api/state
+POST /api/command
+POST /api/action
+POST /api/agent
+POST /api/reset
+```
+
+`POST /api/command` takes:
+
+```json
+{ "command": "cat /logs/postgres.log" }
+```
+
+`POST /api/action` takes:
+
+```json
+{ "action": "DECLARE_SEV1" }
+```
+
+`POST /api/agent` takes:
+
+```json
+{
+  "agent": "Database Agent",
+  "message": "Should we restore the latest backup?"
+}
+```
+
+---
+
+# Design requirements
+
+Make the UI polished but simple:
+
+- dark theme
+- terminal-style command panel
+- incident feed with timestamps
+- action buttons
+- chat-style AI agent panel
+- scorecard on the right
+- reset button
+
+Use clear visual feedback:
+
+- green for good actions
+- yellow for risky warnings
+- red for bad consequences
+- blue for informational feed events
+
+---
+
+# Important implementation principles
+
+1. The simulator state is authoritative.
+2. The AI agent should not mutate simulator state.
+3. The AI should not receive hidden truth directly.
+4. The AI should only reason from artifacts/tool outputs.
+5. The simulation should be deterministic enough to demo reliably.
+6. The app should work even without an API key.
+7. Prioritize a working prototype over perfect realism.
+
+---
+
+# Acceptance criteria
+
+The prototype is successful if I can:
+
+1. Open the app.
+2. See the incident feed.
+3. Run terminal commands to inspect logs/artifacts.
+4. Chat with AI agents.
+5. Take incident actions.
+6. See state changes after actions.
+7. Make good or bad recovery decisions.
+8. See scoring update.
+9. Finish/close the incident and get a debrief.
+10. Reset and replay the scenario.
