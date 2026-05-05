@@ -145,8 +145,11 @@ function IncidentFeed({ feed }: { feed: FeedEvent[] }) {
   );
 }
 
+type TerminalEntry = { command: string; output: string };
+
 function TerminalConsole({ commands }: { commands: string[] }) {
   const [input, setInput] = useState("");
+  const [history, setHistory] = useState<TerminalEntry[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const runCommand = useRunCommand();
   const queryClient = useQueryClient();
@@ -155,15 +158,22 @@ function TerminalConsole({ commands }: { commands: string[] }) {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [commands, runCommand.data]);
+  }, [history, runCommand.isPending]);
+
+  useEffect(() => {
+    if (history.length === 0 && commands.length > 0) {
+      setHistory(commands.map((cmd) => ({ command: cmd, output: "" })));
+    }
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || runCommand.isPending) return;
-    
-    runCommand.mutate({ data: { command: input } }, {
-      onSuccess: () => {
-        setInput("");
+    const cmd = input.trim();
+    if (!cmd || runCommand.isPending) return;
+    setInput("");
+    runCommand.mutate({ data: { command: cmd } }, {
+      onSuccess: (data) => {
+        setHistory((prev) => [...prev, { command: cmd, output: data.output }]);
         queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
       }
     });
@@ -177,18 +187,20 @@ function TerminalConsole({ commands }: { commands: string[] }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 p-3 flex flex-col font-mono text-xs overflow-hidden">
-        <div className="flex-1 overflow-y-auto mb-2 whitespace-pre-wrap text-muted-foreground" ref={scrollRef}>
-          {commands.map((cmd, i) => (
+        <div className="flex-1 overflow-y-auto mb-2" ref={scrollRef}>
+          {history.map((entry, i) => (
             <div key={i} className="mb-2">
-              <div className="text-primary">$ {cmd}</div>
+              <div className="text-primary">taskforge-ops $ {entry.command}</div>
+              {entry.output && (
+                <div className="text-foreground whitespace-pre-wrap mt-0.5 pl-2 border-l border-border">
+                  {entry.output}
+                </div>
+              )}
             </div>
           ))}
-          {runCommand.data && (
-            <div className="text-foreground mt-1 whitespace-pre-wrap">
-              {runCommand.data.output}
-            </div>
+          {runCommand.isPending && (
+            <div className="text-muted-foreground animate-pulse">Running...</div>
           )}
-          {runCommand.isPending && <div className="text-muted-foreground animate-pulse">Running...</div>}
         </div>
         <form onSubmit={handleSubmit} className="flex items-center shrink-0">
           <span className="text-primary mr-2">taskforge-ops $</span>
