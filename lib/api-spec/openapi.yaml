@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: simulator
+    description: Incident simulator operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,95 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /simulator/state:
+    get:
+      operationId: getSimulatorState
+      tags: [simulator]
+      summary: Get simulator state
+      description: Returns the full in-memory simulator state
+      responses:
+        "200":
+          description: Current simulator state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulatorState"
+
+  /simulator/command:
+    post:
+      operationId: runCommand
+      tags: [simulator]
+      summary: Run a terminal command
+      description: Execute a simulated terminal command and get output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandRequest"
+      responses:
+        "200":
+          description: Command output
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+  /simulator/action:
+    post:
+      operationId: takeAction
+      tags: [simulator]
+      summary: Take an incident action
+      description: Execute a major incident action and update simulator state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActionRequest"
+      responses:
+        "200":
+          description: Updated simulator state after action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+
+  /simulator/agent:
+    post:
+      operationId: queryAgent
+      tags: [simulator]
+      summary: Query an AI agent
+      description: Send a message to an AI agent and get a response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentRequest"
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+
+  /simulator/reset:
+    post:
+      operationId: resetSimulator
+      tags: [simulator]
+      summary: Reset the simulator
+      description: Reset the simulator to its initial state
+      responses:
+        "200":
+          description: Reset simulator state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulatorState"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +125,207 @@ components:
       required:
         - status
 
+    FeedEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        time:
+          type: string
+        source:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [info, good, warning, bad, critical]
+      required:
+        - id
+        - time
+        - source
+        - message
+        - type
+
+    ScoreBreakdown:
+      type: object
+      properties:
+        diagnosis:
+          type: integer
+        aiDelegation:
+          type: integer
+        operationalSafety:
+          type: integer
+        recovery:
+          type: integer
+        communication:
+          type: integer
+        prevention:
+          type: integer
+      required:
+        - diagnosis
+        - aiDelegation
+        - operationalSafety
+        - recovery
+        - communication
+        - prevention
+
+    SimulatorState:
+      type: object
+      properties:
+        time:
+          type: string
+        sevDeclared:
+          type: boolean
+        deploysFrozen:
+          type: boolean
+        workersStopped:
+          type: boolean
+        maintenanceMode:
+          type: boolean
+        damagedDbSnapshotted:
+          type: boolean
+        maintBotDisabled:
+          type: boolean
+        rootCauseDiscovered:
+          type: boolean
+        backupInspected:
+          type: boolean
+        latestBackupRestored:
+          type: boolean
+        verifiedBackupRestored:
+          type: boolean
+        replica1Promoted:
+          type: boolean
+        replica2Inspected:
+          type: boolean
+        statusPublished:
+          type: boolean
+        incidentClosed:
+          type: boolean
+        commandsRun:
+          type: array
+          items:
+            type: string
+        score:
+          $ref: "#/components/schemas/ScoreBreakdown"
+        feed:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedEvent"
+        totalScore:
+          type: integer
+        debrief:
+          type: string
+          nullable: true
+      required:
+        - time
+        - sevDeclared
+        - deploysFrozen
+        - workersStopped
+        - maintenanceMode
+        - damagedDbSnapshotted
+        - maintBotDisabled
+        - rootCauseDiscovered
+        - backupInspected
+        - latestBackupRestored
+        - verifiedBackupRestored
+        - replica1Promoted
+        - replica2Inspected
+        - statusPublished
+        - incidentClosed
+        - commandsRun
+        - score
+        - feed
+        - totalScore
+        - debrief
+
+    CommandRequest:
+      type: object
+      properties:
+        command:
+          type: string
+      required:
+        - command
+
+    CommandResponse:
+      type: object
+      properties:
+        output:
+          type: string
+        state:
+          $ref: "#/components/schemas/SimulatorState"
+      required:
+        - output
+        - state
+
+    ActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+            - DECLARE_SEV1
+            - FREEZE_DEPLOYS
+            - STOP_WORKERS
+            - MAINTENANCE_MODE
+            - SNAPSHOT_DB
+            - DISABLE_MAINT_BOT
+            - RESTORE_LATEST_BACKUP
+            - RESTORE_VERIFIED_BACKUP
+            - PROMOTE_REPLICA_1
+            - INSPECT_REPLICA_2
+            - PUBLISH_STATUS_UPDATE
+            - CLOSE_INCIDENT
+      required:
+        - action
+
+    ActionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [good, warning, bad, info]
+        state:
+          $ref: "#/components/schemas/SimulatorState"
+      required:
+        - message
+        - severity
+        - state
+
+    AgentRequest:
+      type: object
+      properties:
+        agent:
+          type: string
+          enum:
+            - DevOps Agent
+            - Database Agent
+            - Communications Agent
+            - Skeptic Agent
+        message:
+          type: string
+      required:
+        - agent
+        - message
+
+    AgentResponse:
+      type: object
+      properties:
+        agent:
+          type: string
+        response:
+          type: string
+        confidence:
+          type: string
+          nullable: true
+        toolsUsed:
+          type: array
+          items:
+            type: string
+      required:
+        - agent
+        - response
+        - confidence
+        - toolsUsed

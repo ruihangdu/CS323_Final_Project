@@ -14,3 +14,220 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Returns the full in-memory simulator state
+ * @summary Get simulator state
+ */
+export const GetSimulatorStateResponse = zod.object({
+  time: zod.string(),
+  sevDeclared: zod.boolean(),
+  deploysFrozen: zod.boolean(),
+  workersStopped: zod.boolean(),
+  maintenanceMode: zod.boolean(),
+  damagedDbSnapshotted: zod.boolean(),
+  maintBotDisabled: zod.boolean(),
+  rootCauseDiscovered: zod.boolean(),
+  backupInspected: zod.boolean(),
+  latestBackupRestored: zod.boolean(),
+  verifiedBackupRestored: zod.boolean(),
+  replica1Promoted: zod.boolean(),
+  replica2Inspected: zod.boolean(),
+  statusPublished: zod.boolean(),
+  incidentClosed: zod.boolean(),
+  commandsRun: zod.array(zod.string()),
+  score: zod.object({
+    diagnosis: zod.number(),
+    aiDelegation: zod.number(),
+    operationalSafety: zod.number(),
+    recovery: zod.number(),
+    communication: zod.number(),
+    prevention: zod.number(),
+  }),
+  feed: zod.array(
+    zod.object({
+      id: zod.string(),
+      time: zod.string(),
+      source: zod.string(),
+      message: zod.string(),
+      type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+    }),
+  ),
+  totalScore: zod.number(),
+  debrief: zod.string().nullable(),
+});
+
+/**
+ * Execute a simulated terminal command and get output
+ * @summary Run a terminal command
+ */
+export const RunCommandBody = zod.object({
+  command: zod.string(),
+});
+
+export const RunCommandResponse = zod.object({
+  output: zod.string(),
+  state: zod.object({
+    time: zod.string(),
+    sevDeclared: zod.boolean(),
+    deploysFrozen: zod.boolean(),
+    workersStopped: zod.boolean(),
+    maintenanceMode: zod.boolean(),
+    damagedDbSnapshotted: zod.boolean(),
+    maintBotDisabled: zod.boolean(),
+    rootCauseDiscovered: zod.boolean(),
+    backupInspected: zod.boolean(),
+    latestBackupRestored: zod.boolean(),
+    verifiedBackupRestored: zod.boolean(),
+    replica1Promoted: zod.boolean(),
+    replica2Inspected: zod.boolean(),
+    statusPublished: zod.boolean(),
+    incidentClosed: zod.boolean(),
+    commandsRun: zod.array(zod.string()),
+    score: zod.object({
+      diagnosis: zod.number(),
+      aiDelegation: zod.number(),
+      operationalSafety: zod.number(),
+      recovery: zod.number(),
+      communication: zod.number(),
+      prevention: zod.number(),
+    }),
+    feed: zod.array(
+      zod.object({
+        id: zod.string(),
+        time: zod.string(),
+        source: zod.string(),
+        message: zod.string(),
+        type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+      }),
+    ),
+    totalScore: zod.number(),
+    debrief: zod.string().nullable(),
+  }),
+});
+
+/**
+ * Execute a major incident action and update simulator state
+ * @summary Take an incident action
+ */
+export const TakeActionBody = zod.object({
+  action: zod.enum([
+    "DECLARE_SEV1",
+    "FREEZE_DEPLOYS",
+    "STOP_WORKERS",
+    "MAINTENANCE_MODE",
+    "SNAPSHOT_DB",
+    "DISABLE_MAINT_BOT",
+    "RESTORE_LATEST_BACKUP",
+    "RESTORE_VERIFIED_BACKUP",
+    "PROMOTE_REPLICA_1",
+    "INSPECT_REPLICA_2",
+    "PUBLISH_STATUS_UPDATE",
+    "CLOSE_INCIDENT",
+  ]),
+});
+
+export const TakeActionResponse = zod.object({
+  message: zod.string(),
+  severity: zod.enum(["good", "warning", "bad", "info"]),
+  state: zod.object({
+    time: zod.string(),
+    sevDeclared: zod.boolean(),
+    deploysFrozen: zod.boolean(),
+    workersStopped: zod.boolean(),
+    maintenanceMode: zod.boolean(),
+    damagedDbSnapshotted: zod.boolean(),
+    maintBotDisabled: zod.boolean(),
+    rootCauseDiscovered: zod.boolean(),
+    backupInspected: zod.boolean(),
+    latestBackupRestored: zod.boolean(),
+    verifiedBackupRestored: zod.boolean(),
+    replica1Promoted: zod.boolean(),
+    replica2Inspected: zod.boolean(),
+    statusPublished: zod.boolean(),
+    incidentClosed: zod.boolean(),
+    commandsRun: zod.array(zod.string()),
+    score: zod.object({
+      diagnosis: zod.number(),
+      aiDelegation: zod.number(),
+      operationalSafety: zod.number(),
+      recovery: zod.number(),
+      communication: zod.number(),
+      prevention: zod.number(),
+    }),
+    feed: zod.array(
+      zod.object({
+        id: zod.string(),
+        time: zod.string(),
+        source: zod.string(),
+        message: zod.string(),
+        type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+      }),
+    ),
+    totalScore: zod.number(),
+    debrief: zod.string().nullable(),
+  }),
+});
+
+/**
+ * Send a message to an AI agent and get a response
+ * @summary Query an AI agent
+ */
+export const QueryAgentBody = zod.object({
+  agent: zod.enum([
+    "DevOps Agent",
+    "Database Agent",
+    "Communications Agent",
+    "Skeptic Agent",
+  ]),
+  message: zod.string(),
+});
+
+export const QueryAgentResponse = zod.object({
+  agent: zod.string(),
+  response: zod.string(),
+  confidence: zod.string().nullable(),
+  toolsUsed: zod.array(zod.string()),
+});
+
+/**
+ * Reset the simulator to its initial state
+ * @summary Reset the simulator
+ */
+export const ResetSimulatorResponse = zod.object({
+  time: zod.string(),
+  sevDeclared: zod.boolean(),
+  deploysFrozen: zod.boolean(),
+  workersStopped: zod.boolean(),
+  maintenanceMode: zod.boolean(),
+  damagedDbSnapshotted: zod.boolean(),
+  maintBotDisabled: zod.boolean(),
+  rootCauseDiscovered: zod.boolean(),
+  backupInspected: zod.boolean(),
+  latestBackupRestored: zod.boolean(),
+  verifiedBackupRestored: zod.boolean(),
+  replica1Promoted: zod.boolean(),
+  replica2Inspected: zod.boolean(),
+  statusPublished: zod.boolean(),
+  incidentClosed: zod.boolean(),
+  commandsRun: zod.array(zod.string()),
+  score: zod.object({
+    diagnosis: zod.number(),
+    aiDelegation: zod.number(),
+    operationalSafety: zod.number(),
+    recovery: zod.number(),
+    communication: zod.number(),
+    prevention: zod.number(),
+  }),
+  feed: zod.array(
+    zod.object({
+      id: zod.string(),
+      time: zod.string(),
+      source: zod.string(),
+      message: zod.string(),
+      type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+    }),
+  ),
+  totalScore: zod.number(),
+  debrief: zod.string().nullable(),
+});

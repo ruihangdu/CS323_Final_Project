@@ -6,4 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./actionRequest";
+export * from "./actionRequestAction";
+export * from "./actionResponse";
+export * from "./actionResponseSeverity";
+export * from "./agentRequest";
+export * from "./agentRequestAgent";
+export * from "./agentResponse";
+export * from "./commandRequest";
+export * from "./commandResponse";
+export * from "./feedEvent";
+export * from "./feedEventType";
 export * from "./healthStatus";
+export * from "./scoreBreakdown";
+export * from "./simulatorState";

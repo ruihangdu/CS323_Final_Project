@@ -5,18 +5,30 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ActionRequest,
+  ActionResponse,
+  AgentRequest,
+  AgentResponse,
+  CommandRequest,
+  CommandResponse,
+  HealthStatus,
+  SimulatorState,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +111,422 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Returns the full in-memory simulator state
+ * @summary Get simulator state
+ */
+export const getGetSimulatorStateUrl = () => {
+  return `/api/simulator/state`;
+};
+
+export const getSimulatorState = async (
+  options?: RequestInit,
+): Promise<SimulatorState> => {
+  return customFetch<SimulatorState>(getGetSimulatorStateUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSimulatorStateQueryKey = () => {
+  return [`/api/simulator/state`] as const;
+};
+
+export const getGetSimulatorStateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSimulatorState>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSimulatorState>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSimulatorStateQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSimulatorState>>
+  > = ({ signal }) => getSimulatorState({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSimulatorState>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSimulatorStateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSimulatorState>>
+>;
+export type GetSimulatorStateQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get simulator state
+ */
+
+export function useGetSimulatorState<
+  TData = Awaited<ReturnType<typeof getSimulatorState>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSimulatorState>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSimulatorStateQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Execute a simulated terminal command and get output
+ * @summary Run a terminal command
+ */
+export const getRunCommandUrl = () => {
+  return `/api/simulator/command`;
+};
+
+export const runCommand = async (
+  commandRequest: CommandRequest,
+  options?: RequestInit,
+): Promise<CommandResponse> => {
+  return customFetch<CommandResponse>(getRunCommandUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(commandRequest),
+  });
+};
+
+export const getRunCommandMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runCommand>>,
+    TError,
+    { data: BodyType<CommandRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runCommand>>,
+  TError,
+  { data: BodyType<CommandRequest> },
+  TContext
+> => {
+  const mutationKey = ["runCommand"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runCommand>>,
+    { data: BodyType<CommandRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return runCommand(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunCommandMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runCommand>>
+>;
+export type RunCommandMutationBody = BodyType<CommandRequest>;
+export type RunCommandMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Run a terminal command
+ */
+export const useRunCommand = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runCommand>>,
+    TError,
+    { data: BodyType<CommandRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runCommand>>,
+  TError,
+  { data: BodyType<CommandRequest> },
+  TContext
+> => {
+  return useMutation(getRunCommandMutationOptions(options));
+};
+
+/**
+ * Execute a major incident action and update simulator state
+ * @summary Take an incident action
+ */
+export const getTakeActionUrl = () => {
+  return `/api/simulator/action`;
+};
+
+export const takeAction = async (
+  actionRequest: ActionRequest,
+  options?: RequestInit,
+): Promise<ActionResponse> => {
+  return customFetch<ActionResponse>(getTakeActionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(actionRequest),
+  });
+};
+
+export const getTakeActionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof takeAction>>,
+    TError,
+    { data: BodyType<ActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof takeAction>>,
+  TError,
+  { data: BodyType<ActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["takeAction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof takeAction>>,
+    { data: BodyType<ActionRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return takeAction(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TakeActionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof takeAction>>
+>;
+export type TakeActionMutationBody = BodyType<ActionRequest>;
+export type TakeActionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Take an incident action
+ */
+export const useTakeAction = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof takeAction>>,
+    TError,
+    { data: BodyType<ActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof takeAction>>,
+  TError,
+  { data: BodyType<ActionRequest> },
+  TContext
+> => {
+  return useMutation(getTakeActionMutationOptions(options));
+};
+
+/**
+ * Send a message to an AI agent and get a response
+ * @summary Query an AI agent
+ */
+export const getQueryAgentUrl = () => {
+  return `/api/simulator/agent`;
+};
+
+export const queryAgent = async (
+  agentRequest: AgentRequest,
+  options?: RequestInit,
+): Promise<AgentResponse> => {
+  return customFetch<AgentResponse>(getQueryAgentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(agentRequest),
+  });
+};
+
+export const getQueryAgentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof queryAgent>>,
+    TError,
+    { data: BodyType<AgentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof queryAgent>>,
+  TError,
+  { data: BodyType<AgentRequest> },
+  TContext
+> => {
+  const mutationKey = ["queryAgent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof queryAgent>>,
+    { data: BodyType<AgentRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return queryAgent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type QueryAgentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof queryAgent>>
+>;
+export type QueryAgentMutationBody = BodyType<AgentRequest>;
+export type QueryAgentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Query an AI agent
+ */
+export const useQueryAgent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof queryAgent>>,
+    TError,
+    { data: BodyType<AgentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof queryAgent>>,
+  TError,
+  { data: BodyType<AgentRequest> },
+  TContext
+> => {
+  return useMutation(getQueryAgentMutationOptions(options));
+};
+
+/**
+ * Reset the simulator to its initial state
+ * @summary Reset the simulator
+ */
+export const getResetSimulatorUrl = () => {
+  return `/api/simulator/reset`;
+};
+
+export const resetSimulator = async (
+  options?: RequestInit,
+): Promise<SimulatorState> => {
+  return customFetch<SimulatorState>(getResetSimulatorUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getResetSimulatorMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetSimulator>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetSimulator>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["resetSimulator"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetSimulator>>,
+    void
+  > = () => {
+    return resetSimulator(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetSimulatorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetSimulator>>
+>;
+
+export type ResetSimulatorMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Reset the simulator
+ */
+export const useResetSimulator = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetSimulator>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resetSimulator>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getResetSimulatorMutationOptions(options));
+};

@@ -8,3 +8,122 @@
 export interface HealthStatus {
   status: string;
 }
+
+export type FeedEventType = (typeof FeedEventType)[keyof typeof FeedEventType];
+
+export const FeedEventType = {
+  info: "info",
+  good: "good",
+  warning: "warning",
+  bad: "bad",
+  critical: "critical",
+} as const;
+
+export interface FeedEvent {
+  id: string;
+  time: string;
+  source: string;
+  message: string;
+  type: FeedEventType;
+}
+
+export interface ScoreBreakdown {
+  diagnosis: number;
+  aiDelegation: number;
+  operationalSafety: number;
+  recovery: number;
+  communication: number;
+  prevention: number;
+}
+
+export interface SimulatorState {
+  time: string;
+  sevDeclared: boolean;
+  deploysFrozen: boolean;
+  workersStopped: boolean;
+  maintenanceMode: boolean;
+  damagedDbSnapshotted: boolean;
+  maintBotDisabled: boolean;
+  rootCauseDiscovered: boolean;
+  backupInspected: boolean;
+  latestBackupRestored: boolean;
+  verifiedBackupRestored: boolean;
+  replica1Promoted: boolean;
+  replica2Inspected: boolean;
+  statusPublished: boolean;
+  incidentClosed: boolean;
+  commandsRun: string[];
+  score: ScoreBreakdown;
+  feed: FeedEvent[];
+  totalScore: number;
+  debrief: string | null;
+}
+
+export interface CommandRequest {
+  command: string;
+}
+
+export interface CommandResponse {
+  output: string;
+  state: SimulatorState;
+}
+
+export type ActionRequestAction =
+  (typeof ActionRequestAction)[keyof typeof ActionRequestAction];
+
+export const ActionRequestAction = {
+  DECLARE_SEV1: "DECLARE_SEV1",
+  FREEZE_DEPLOYS: "FREEZE_DEPLOYS",
+  STOP_WORKERS: "STOP_WORKERS",
+  MAINTENANCE_MODE: "MAINTENANCE_MODE",
+  SNAPSHOT_DB: "SNAPSHOT_DB",
+  DISABLE_MAINT_BOT: "DISABLE_MAINT_BOT",
+  RESTORE_LATEST_BACKUP: "RESTORE_LATEST_BACKUP",
+  RESTORE_VERIFIED_BACKUP: "RESTORE_VERIFIED_BACKUP",
+  PROMOTE_REPLICA_1: "PROMOTE_REPLICA_1",
+  INSPECT_REPLICA_2: "INSPECT_REPLICA_2",
+  PUBLISH_STATUS_UPDATE: "PUBLISH_STATUS_UPDATE",
+  CLOSE_INCIDENT: "CLOSE_INCIDENT",
+} as const;
+
+export interface ActionRequest {
+  action: ActionRequestAction;
+}
+
+export type ActionResponseSeverity =
+  (typeof ActionResponseSeverity)[keyof typeof ActionResponseSeverity];
+
+export const ActionResponseSeverity = {
+  good: "good",
+  warning: "warning",
+  bad: "bad",
+  info: "info",
+} as const;
+
+export interface ActionResponse {
+  message: string;
+  severity: ActionResponseSeverity;
+  state: SimulatorState;
+}
+
+export type AgentRequestAgent =
+  (typeof AgentRequestAgent)[keyof typeof AgentRequestAgent];
+
+export const AgentRequestAgent = {
+  DevOps_Agent: "DevOps Agent",
+  Database_Agent: "Database Agent",
+  Communications_Agent: "Communications Agent",
+  Skeptic_Agent: "Skeptic Agent",
+} as const;
+
+export interface AgentRequest {
+  agent: AgentRequestAgent;
+  message: string;
+}
+
+export interface AgentResponse {
+  agent: string;
+  response: string;
+  confidence: string | null;
+  toolsUsed: string[];
+}
