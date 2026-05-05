@@ -529,7 +529,11 @@ async function callOpenAI(
     },
   ];
 
-  const messages: Array<{ role: string; content: string; tool_call_id?: string; name?: string }> = [
+  type ChatMessage =
+    | { role: "system" | "user" | "assistant"; content: string; tool_calls?: Array<{ id: string; type: "function"; function: { name: string; arguments: string } }> }
+    | { role: "tool"; content: string; tool_call_id: string; name: string };
+
+  const messages: ChatMessage[] = [
     {
       role: "system",
       content: systemPrompts[agentName] || systemPrompts["DevOps Agent"],
@@ -576,9 +580,16 @@ async function callOpenAI(
     const choice = data.choices[0];
     const msg = choice.message;
 
-    messages.push({ role: msg.role, content: msg.content || "" });
-
     if (choice.finish_reason === "tool_calls" && msg.tool_calls) {
+      messages.push({
+        role: "assistant",
+        content: msg.content || "",
+        tool_calls: msg.tool_calls.map((tc) => ({
+          id: tc.id,
+          type: "function" as const,
+          function: tc.function,
+        })),
+      });
       for (const tc of msg.tool_calls) {
         const args = JSON.parse(tc.function.arguments || "{}") as Record<string, string>;
         const toolResult = callTool(tc.function.name, args);
@@ -591,6 +602,7 @@ async function callOpenAI(
         });
       }
     } else {
+      messages.push({ role: "assistant", content: msg.content || "" });
       // Extract confidence if mentioned
       const content = msg.content || "";
       const confMatch = content.match(/confidence[:\s]+(\w+)/i);

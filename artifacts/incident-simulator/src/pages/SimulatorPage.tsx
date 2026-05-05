@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 
 export default function SimulatorPage() {
   const queryClient = useQueryClient();
+  const [sessionKey, setSessionKey] = useState(0);
   const { data: state, isLoading } = useGetSimulatorState({
     query: { refetchInterval: 3000, queryKey: getGetSimulatorStateQueryKey() }
   });
@@ -35,6 +36,7 @@ export default function SimulatorPage() {
   const handleReset = () => {
     resetSimulator.mutate(undefined, {
       onSuccess: () => {
+        setSessionKey((k) => k + 1);
         queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
       }
     });
@@ -77,12 +79,12 @@ export default function SimulatorPage() {
         {/* Left Column: Feed & Terminal */}
         <div className="col-span-4 flex flex-col gap-4 min-h-0">
           <IncidentFeed feed={state.feed} />
-          <TerminalConsole commands={state.commandsRun} />
+          <TerminalConsole key={sessionKey} commands={state.commandsRun} />
         </div>
 
         {/* Center Column: AI Agent */}
         <div className="col-span-4 flex flex-col min-h-0">
-          <AIAgentPanel />
+          <AIAgentPanel key={sessionKey} />
         </div>
 
         {/* Right Column: Actions & Score */}
@@ -160,11 +162,6 @@ function TerminalConsole({ commands }: { commands: string[] }) {
     }
   }, [history, runCommand.isPending]);
 
-  useEffect(() => {
-    if (history.length === 0 && commands.length > 0) {
-      setHistory(commands.map((cmd) => ({ command: cmd, output: "" })));
-    }
-  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
