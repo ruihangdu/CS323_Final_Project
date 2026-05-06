@@ -27,6 +27,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 export default function SimulatorPage() {
   const queryClient = useQueryClient();
   const [sessionKey, setSessionKey] = useState(0);
+  const [debriefDismissed, setDebriefDismissed] = useState(false);
   const { data: state, isLoading } = useGetSimulatorState({
     query: { refetchInterval: 3000, queryKey: getGetSimulatorStateQueryKey() }
   });
@@ -37,6 +38,7 @@ export default function SimulatorPage() {
     resetSimulator.mutate(undefined, {
       onSuccess: () => {
         setSessionKey((k) => k + 1);
+        setDebriefDismissed(false);
         queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
       }
     });
@@ -95,9 +97,10 @@ export default function SimulatorPage() {
       </div>
 
       <DebriefModal 
-        isOpen={state.incidentClosed && state.debrief !== null} 
+        isOpen={state.incidentClosed && state.debrief !== null && !debriefDismissed} 
         debrief={state.debrief} 
         score={state.totalScore}
+        onClose={() => setDebriefDismissed(true)}
       />
     </div>
   );
@@ -428,9 +431,9 @@ function ScorePanel({ score, totalScore }: { score: ScoreBreakdown, totalScore: 
   );
 }
 
-function DebriefModal({ isOpen, debrief, score }: { isOpen: boolean, debrief: string | null, score: number }) {
+function DebriefModal({ isOpen, debrief, score, onClose }: { isOpen: boolean, debrief: string | null, score: number, onClose: () => void }) {
   return (
-    <Dialog open={isOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-card border-border sm:rounded-none">
         <DialogHeader>
           <DialogTitle className="font-mono text-xl text-primary border-b border-border pb-4 flex items-center gap-2">
@@ -450,6 +453,11 @@ function DebriefModal({ isOpen, debrief, score }: { isOpen: boolean, debrief: st
               {debrief}
             </div>
           </div>
+        </div>
+        <div className="flex justify-end pt-2 border-t border-border">
+          <Button onClick={onClose} className="font-mono text-xs">
+            CLOSE DEBRIEF
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
