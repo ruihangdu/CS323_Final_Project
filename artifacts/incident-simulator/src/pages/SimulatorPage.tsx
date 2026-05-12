@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Terminal, CheckCircle2, RotateCcw, Send, Activity, ShieldAlert, Zap, Clock, Shield, TrendingUp } from "lucide-react";
+import { AlertCircle, Terminal, CheckCircle2, RotateCcw, Send, Activity, ShieldAlert, Zap, Clock, Shield, TrendingUp, Settings } from "lucide-react";
 import {
   useGetSimulatorState,
   useRunCommand,
@@ -24,10 +24,30 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
+function useBranding() {
+  const params = new URLSearchParams(window.location.search);
+  const companyName = params.get("company") || "TaskForge";
+  const accentColor = params.get("color");
+  const accentFg = params.get("fg");
+
+  useEffect(() => {
+    if (accentColor) document.documentElement.style.setProperty("--primary", accentColor);
+    if (accentFg) document.documentElement.style.setProperty("--primary-foreground", accentFg);
+  }, [accentColor, accentFg]);
+
+  const companySlug = companyName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const cosParams = new URLSearchParams(window.location.search).toString();
+  const cosUrl = `/cos-simulator/${cosParams ? `?${cosParams}` : ""}`;
+
+  return { companyName, companySlug, cosUrl };
+}
+
 export default function SimulatorPage() {
   const queryClient = useQueryClient();
   const [sessionKey, setSessionKey] = useState(0);
   const [debriefDismissed, setDebriefDismissed] = useState(false);
+  const { companyName, companySlug, cosUrl } = useBranding();
+
   const { data: state, isLoading } = useGetSimulatorState({
     query: { refetchInterval: 3000, queryKey: getGetSimulatorStateQueryKey() }
   });
@@ -54,7 +74,7 @@ export default function SimulatorPage() {
       <header className="h-14 border-b border-border flex items-center justify-between px-6 shrink-0 bg-card">
         <div className="flex items-center gap-4">
           <Activity className="w-5 h-5 text-primary" />
-          <h1 className="font-bold tracking-tight text-lg">TaskForge Incident Response Simulator</h1>
+          <h1 className="font-bold tracking-tight text-lg">{companyName} Incident Response Simulator</h1>
           <Badge variant="outline" className="font-mono text-sm border-primary text-primary bg-primary/10">
             {state.time}
           </Badge>
@@ -72,7 +92,15 @@ export default function SimulatorPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { window.location.href = "/cos-simulator/"; }}
+            onClick={() => { window.location.href = "/"; }}
+            className="font-mono text-xs border-border text-muted-foreground hover:text-foreground"
+          >
+            <Settings className="w-3 h-3 mr-2" /> Configure
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { window.location.href = cosUrl; }}
             className="font-mono text-xs border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
           >
             <TrendingUp className="w-3 h-3 mr-2" /> Chief of Staff Role
@@ -89,7 +117,7 @@ export default function SimulatorPage() {
         {/* Left Column: Feed & Terminal */}
         <div className="col-span-4 flex flex-col gap-4 min-h-0">
           <IncidentFeed feed={state.feed} />
-          <TerminalConsole key={sessionKey} commands={state.commandsRun} />
+          <TerminalConsole key={sessionKey} companySlug={companySlug} />
         </div>
 
         {/* Center Column: AI Agent */}
@@ -160,19 +188,19 @@ function IncidentFeed({ feed }: { feed: FeedEvent[] }) {
 
 type TerminalEntry = { command: string; output: string };
 
-function TerminalConsole({ commands }: { commands: string[] }) {
+function TerminalConsole({ companySlug }: { companySlug: string }) {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<TerminalEntry[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const runCommand = useRunCommand();
   const queryClient = useQueryClient();
+  const prompt = `${companySlug}-ops`;
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [history, runCommand.isPending]);
-
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,7 +226,7 @@ function TerminalConsole({ commands }: { commands: string[] }) {
         <div className="flex-1 overflow-y-auto mb-2" ref={scrollRef}>
           {history.map((entry, i) => (
             <div key={i} className="mb-2">
-              <div className="text-primary">taskforge-ops $ {entry.command}</div>
+              <div className="text-primary">{prompt} $ {entry.command}</div>
               {entry.output && (
                 <div className="text-foreground whitespace-pre-wrap mt-0.5 pl-2 border-l border-border">
                   {entry.output}
@@ -211,7 +239,7 @@ function TerminalConsole({ commands }: { commands: string[] }) {
           )}
         </div>
         <form onSubmit={handleSubmit} className="flex items-center shrink-0">
-          <span className="text-primary mr-2">taskforge-ops $</span>
+          <span className="text-primary mr-2">{prompt} $</span>
           <input 
             type="text" 
             value={input}

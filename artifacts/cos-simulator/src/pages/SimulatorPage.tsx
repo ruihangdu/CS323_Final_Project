@@ -13,7 +13,9 @@ import {
   Users,
   Heart,
   Activity,
+  Settings,
 } from "lucide-react";
+
 import {
   useGetCosSimulatorState,
   useRunCosCommand,
@@ -42,10 +44,29 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+function useBranding() {
+  const params = new URLSearchParams(window.location.search);
+  const companyName = params.get("company") || "Creator HQ";
+  const accentColor = params.get("color");
+  const accentFg = params.get("fg");
+
+  useEffect(() => {
+    if (accentColor) document.documentElement.style.setProperty("--primary", accentColor);
+    if (accentFg) document.documentElement.style.setProperty("--primary-foreground", accentFg);
+  }, [accentColor, accentFg]);
+
+  const companySlug = companyName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+  const devopsParams = new URLSearchParams(window.location.search).toString();
+  const devopsUrl = `/sim${devopsParams ? `?${devopsParams}` : ""}`;
+
+  return { companyName, companySlug, devopsUrl };
+}
+
 export default function SimulatorPage() {
   const queryClient = useQueryClient();
   const [sessionKey, setSessionKey] = useState(0);
   const [debriefDismissed, setDebriefDismissed] = useState(false);
+  const { companyName, companySlug, devopsUrl } = useBranding();
   const { data: state, isLoading } = useGetCosSimulatorState({
     query: {
       refetchInterval: 3000,
@@ -82,7 +103,7 @@ export default function SimulatorPage() {
         <div className="flex items-center gap-4">
           <TrendingUp className="w-5 h-5 text-primary" />
           <h1 className="font-bold tracking-tight text-lg">
-            Creator HQ — Crisis Simulator
+            {companyName} — Crisis Simulator
           </h1>
           <Badge
             variant="outline"
@@ -114,6 +135,14 @@ export default function SimulatorPage() {
             variant="outline"
             size="sm"
             onClick={() => { window.location.href = "/"; }}
+            className="font-mono text-xs border-border text-muted-foreground hover:text-foreground"
+          >
+            <Settings className="w-3 h-3 mr-2" /> Configure
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { window.location.href = devopsUrl; }}
             className="font-mono text-xs border-primary/50 text-primary hover:bg-primary/10"
           >
             <Activity className="w-3 h-3 mr-2" /> SWE On-Call Role
@@ -135,7 +164,7 @@ export default function SimulatorPage() {
         {/* Left Column: Feed & Terminal */}
         <div className="col-span-4 flex flex-col gap-4 min-h-0">
           <SituationFeed feed={state.feed} />
-          <TerminalConsole key={sessionKey} />
+          <TerminalConsole key={sessionKey} companySlug={companySlug} />
         </div>
 
         {/* Center Column: AI Advisors */}
@@ -230,12 +259,13 @@ function SituationFeed({ feed }: { feed: FeedEvent[] }) {
 
 type TerminalEntry = { command: string; output: string };
 
-function TerminalConsole() {
+function TerminalConsole({ companySlug }: { companySlug: string }) {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<TerminalEntry[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const runCommand = useRunCosCommand();
   const queryClient = useQueryClient();
+  const prompt = `${companySlug}-hq`;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -280,7 +310,7 @@ function TerminalConsole() {
           )}
           {history.map((entry, i) => (
             <div key={i} className="mb-2">
-              <div className="text-primary">creator-hq $ {entry.command}</div>
+              <div className="text-primary">{prompt} $ {entry.command}</div>
               {entry.output && (
                 <div className="text-foreground whitespace-pre-wrap mt-0.5 pl-2 border-l border-border">
                   {entry.output}
@@ -298,7 +328,7 @@ function TerminalConsole() {
           onSubmit={handleSubmit}
           className="flex items-center shrink-0"
         >
-          <span className="text-primary mr-2">creator-hq $</span>
+          <span className="text-primary mr-2">{prompt} $</span>
           <input
             type="text"
             value={input}
