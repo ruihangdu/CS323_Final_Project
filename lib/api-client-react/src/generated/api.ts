@@ -23,6 +23,11 @@ import type {
   AgentResponse,
   CommandRequest,
   CommandResponse,
+  CosActionRequest,
+  CosActionResponse,
+  CosAgentRequest,
+  CosCommandResponse,
+  CosSimulatorState,
   HealthStatus,
   SimulatorState,
 } from "./api.schemas";
@@ -529,4 +534,423 @@ export const useResetSimulator = <
   TContext
 > => {
   return useMutation(getResetSimulatorMutationOptions(options));
+};
+
+/**
+ * Returns the full in-memory Creator HQ simulator state
+ * @summary Get Creator HQ simulator state
+ */
+export const getGetCosSimulatorStateUrl = () => {
+  return `/api/cos-simulator/state`;
+};
+
+export const getCosSimulatorState = async (
+  options?: RequestInit,
+): Promise<CosSimulatorState> => {
+  return customFetch<CosSimulatorState>(getGetCosSimulatorStateUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCosSimulatorStateQueryKey = () => {
+  return [`/api/cos-simulator/state`] as const;
+};
+
+export const getGetCosSimulatorStateQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCosSimulatorState>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCosSimulatorState>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCosSimulatorStateQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCosSimulatorState>>
+  > = ({ signal }) => getCosSimulatorState({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCosSimulatorState>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCosSimulatorStateQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCosSimulatorState>>
+>;
+export type GetCosSimulatorStateQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get Creator HQ simulator state
+ */
+
+export function useGetCosSimulatorState<
+  TData = Awaited<ReturnType<typeof getCosSimulatorState>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCosSimulatorState>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCosSimulatorStateQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Execute a simulated Creator HQ terminal command and get output
+ * @summary Run a Creator HQ terminal command
+ */
+export const getRunCosCommandUrl = () => {
+  return `/api/cos-simulator/command`;
+};
+
+export const runCosCommand = async (
+  commandRequest: CommandRequest,
+  options?: RequestInit,
+): Promise<CosCommandResponse> => {
+  return customFetch<CosCommandResponse>(getRunCosCommandUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(commandRequest),
+  });
+};
+
+export const getRunCosCommandMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runCosCommand>>,
+    TError,
+    { data: BodyType<CommandRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runCosCommand>>,
+  TError,
+  { data: BodyType<CommandRequest> },
+  TContext
+> => {
+  const mutationKey = ["runCosCommand"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runCosCommand>>,
+    { data: BodyType<CommandRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return runCosCommand(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunCosCommandMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runCosCommand>>
+>;
+export type RunCosCommandMutationBody = BodyType<CommandRequest>;
+export type RunCosCommandMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Run a Creator HQ terminal command
+ */
+export const useRunCosCommand = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runCosCommand>>,
+    TError,
+    { data: BodyType<CommandRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runCosCommand>>,
+  TError,
+  { data: BodyType<CommandRequest> },
+  TContext
+> => {
+  return useMutation(getRunCosCommandMutationOptions(options));
+};
+
+/**
+ * Execute a major Creator HQ incident action and update simulator state
+ * @summary Take a Creator HQ incident action
+ */
+export const getTakeCosActionUrl = () => {
+  return `/api/cos-simulator/action`;
+};
+
+export const takeCosAction = async (
+  cosActionRequest: CosActionRequest,
+  options?: RequestInit,
+): Promise<CosActionResponse> => {
+  return customFetch<CosActionResponse>(getTakeCosActionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(cosActionRequest),
+  });
+};
+
+export const getTakeCosActionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof takeCosAction>>,
+    TError,
+    { data: BodyType<CosActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof takeCosAction>>,
+  TError,
+  { data: BodyType<CosActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["takeCosAction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof takeCosAction>>,
+    { data: BodyType<CosActionRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return takeCosAction(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TakeCosActionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof takeCosAction>>
+>;
+export type TakeCosActionMutationBody = BodyType<CosActionRequest>;
+export type TakeCosActionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Take a Creator HQ incident action
+ */
+export const useTakeCosAction = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof takeCosAction>>,
+    TError,
+    { data: BodyType<CosActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof takeCosAction>>,
+  TError,
+  { data: BodyType<CosActionRequest> },
+  TContext
+> => {
+  return useMutation(getTakeCosActionMutationOptions(options));
+};
+
+/**
+ * Send a message to a Creator HQ AI advisor and get a response
+ * @summary Query a Creator HQ AI advisor
+ */
+export const getQueryCosAgentUrl = () => {
+  return `/api/cos-simulator/agent`;
+};
+
+export const queryCosAgent = async (
+  cosAgentRequest: CosAgentRequest,
+  options?: RequestInit,
+): Promise<AgentResponse> => {
+  return customFetch<AgentResponse>(getQueryCosAgentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(cosAgentRequest),
+  });
+};
+
+export const getQueryCosAgentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof queryCosAgent>>,
+    TError,
+    { data: BodyType<CosAgentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof queryCosAgent>>,
+  TError,
+  { data: BodyType<CosAgentRequest> },
+  TContext
+> => {
+  const mutationKey = ["queryCosAgent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof queryCosAgent>>,
+    { data: BodyType<CosAgentRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return queryCosAgent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type QueryCosAgentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof queryCosAgent>>
+>;
+export type QueryCosAgentMutationBody = BodyType<CosAgentRequest>;
+export type QueryCosAgentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Query a Creator HQ AI advisor
+ */
+export const useQueryCosAgent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof queryCosAgent>>,
+    TError,
+    { data: BodyType<CosAgentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof queryCosAgent>>,
+  TError,
+  { data: BodyType<CosAgentRequest> },
+  TContext
+> => {
+  return useMutation(getQueryCosAgentMutationOptions(options));
+};
+
+/**
+ * Reset the Creator HQ simulator to its initial state
+ * @summary Reset the Creator HQ simulator
+ */
+export const getResetCosSimulatorUrl = () => {
+  return `/api/cos-simulator/reset`;
+};
+
+export const resetCosSimulator = async (
+  options?: RequestInit,
+): Promise<CosSimulatorState> => {
+  return customFetch<CosSimulatorState>(getResetCosSimulatorUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getResetCosSimulatorMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetCosSimulator>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof resetCosSimulator>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["resetCosSimulator"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof resetCosSimulator>>,
+    void
+  > = () => {
+    return resetCosSimulator(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ResetCosSimulatorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof resetCosSimulator>>
+>;
+
+export type ResetCosSimulatorMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Reset the Creator HQ simulator
+ */
+export const useResetCosSimulator = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof resetCosSimulator>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof resetCosSimulator>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getResetCosSimulatorMutationOptions(options));
 };

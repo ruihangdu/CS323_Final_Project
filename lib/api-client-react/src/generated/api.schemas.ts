@@ -127,3 +127,88 @@ export interface AgentResponse {
   confidence: string | null;
   toolsUsed: string[];
 }
+
+export interface CosScoreBreakdown {
+  investigation: number;
+  crisisContainment: number;
+  stakeholderManagement: number;
+  creatorSupport: number;
+  communication: number;
+  prevention: number;
+}
+
+export interface CosSimulatorState {
+  time: string;
+  clipContextChecked: boolean;
+  brandPostPaused: boolean;
+  creatorBriefed: boolean;
+  agencyContacted: boolean;
+  megaCorpReachedOut: boolean;
+  legalConsulted: boolean;
+  statementIssued: boolean;
+  statementIssuedBeforeContextChecked: boolean;
+  apologyIssued: boolean;
+  contractsReviewed: boolean;
+  incidentClosed: boolean;
+  commandsRun: string[];
+  score: CosScoreBreakdown;
+  feed: FeedEvent[];
+  totalScore: number;
+  debrief: string | null;
+}
+
+export interface CosCommandResponse {
+  output: string;
+  state: CosSimulatorState;
+}
+
+export type CosActionRequestAction =
+  (typeof CosActionRequestAction)[keyof typeof CosActionRequestAction];
+
+export const CosActionRequestAction = {
+  PAUSE_BRAND_POST: "PAUSE_BRAND_POST",
+  BRIEF_CREATOR: "BRIEF_CREATOR",
+  CONTACT_AGENCY: "CONTACT_AGENCY",
+  REVIEW_CONTRACTS: "REVIEW_CONTRACTS",
+  PULL_CLIP_ARCHIVE: "PULL_CLIP_ARCHIVE",
+  ISSUE_APOLOGY_IMMEDIATELY: "ISSUE_APOLOGY_IMMEDIATELY",
+  CONTACT_MEGACORP_PROACTIVELY: "CONTACT_MEGACORP_PROACTIVELY",
+  ISSUE_MEASURED_STATEMENT: "ISSUE_MEASURED_STATEMENT",
+  ACTIVATE_LEGAL: "ACTIVATE_LEGAL",
+  CLOSE_INCIDENT: "CLOSE_INCIDENT",
+} as const;
+
+export interface CosActionRequest {
+  action: CosActionRequestAction;
+}
+
+export type CosActionResponseSeverity =
+  (typeof CosActionResponseSeverity)[keyof typeof CosActionResponseSeverity];
+
+export const CosActionResponseSeverity = {
+  good: "good",
+  warning: "warning",
+  bad: "bad",
+  info: "info",
+} as const;
+
+export interface CosActionResponse {
+  message: string;
+  severity: CosActionResponseSeverity;
+  state: CosSimulatorState;
+}
+
+export type CosAgentRequestAgent =
+  (typeof CosAgentRequestAgent)[keyof typeof CosAgentRequestAgent];
+
+export const CosAgentRequestAgent = {
+  PR_Strategist: "PR Strategist",
+  Brand_Manager: "Brand Manager",
+  Legal_Counsel: "Legal Counsel",
+  "Devil's_Advocate": "Devil's Advocate",
+} as const;
+
+export interface CosAgentRequest {
+  agent: CosAgentRequestAgent;
+  message: string;
+}

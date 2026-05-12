@@ -231,3 +231,206 @@ export const ResetSimulatorResponse = zod.object({
   totalScore: zod.number(),
   debrief: zod.string().nullable(),
 });
+
+/**
+ * Returns the full in-memory Creator HQ simulator state
+ * @summary Get Creator HQ simulator state
+ */
+export const GetCosSimulatorStateResponse = zod.object({
+  time: zod.string(),
+  clipContextChecked: zod.boolean(),
+  brandPostPaused: zod.boolean(),
+  creatorBriefed: zod.boolean(),
+  agencyContacted: zod.boolean(),
+  megaCorpReachedOut: zod.boolean(),
+  legalConsulted: zod.boolean(),
+  statementIssued: zod.boolean(),
+  statementIssuedBeforeContextChecked: zod.boolean(),
+  apologyIssued: zod.boolean(),
+  contractsReviewed: zod.boolean(),
+  incidentClosed: zod.boolean(),
+  commandsRun: zod.array(zod.string()),
+  score: zod.object({
+    investigation: zod.number(),
+    crisisContainment: zod.number(),
+    stakeholderManagement: zod.number(),
+    creatorSupport: zod.number(),
+    communication: zod.number(),
+    prevention: zod.number(),
+  }),
+  feed: zod.array(
+    zod.object({
+      id: zod.string(),
+      time: zod.string(),
+      source: zod.string(),
+      message: zod.string(),
+      type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+    }),
+  ),
+  totalScore: zod.number(),
+  debrief: zod.string().nullable(),
+});
+
+/**
+ * Execute a simulated Creator HQ terminal command and get output
+ * @summary Run a Creator HQ terminal command
+ */
+export const RunCosCommandBody = zod.object({
+  command: zod.string(),
+});
+
+export const RunCosCommandResponse = zod.object({
+  output: zod.string(),
+  state: zod.object({
+    time: zod.string(),
+    clipContextChecked: zod.boolean(),
+    brandPostPaused: zod.boolean(),
+    creatorBriefed: zod.boolean(),
+    agencyContacted: zod.boolean(),
+    megaCorpReachedOut: zod.boolean(),
+    legalConsulted: zod.boolean(),
+    statementIssued: zod.boolean(),
+    statementIssuedBeforeContextChecked: zod.boolean(),
+    apologyIssued: zod.boolean(),
+    contractsReviewed: zod.boolean(),
+    incidentClosed: zod.boolean(),
+    commandsRun: zod.array(zod.string()),
+    score: zod.object({
+      investigation: zod.number(),
+      crisisContainment: zod.number(),
+      stakeholderManagement: zod.number(),
+      creatorSupport: zod.number(),
+      communication: zod.number(),
+      prevention: zod.number(),
+    }),
+    feed: zod.array(
+      zod.object({
+        id: zod.string(),
+        time: zod.string(),
+        source: zod.string(),
+        message: zod.string(),
+        type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+      }),
+    ),
+    totalScore: zod.number(),
+    debrief: zod.string().nullable(),
+  }),
+});
+
+/**
+ * Execute a major Creator HQ incident action and update simulator state
+ * @summary Take a Creator HQ incident action
+ */
+export const TakeCosActionBody = zod.object({
+  action: zod.enum([
+    "PAUSE_BRAND_POST",
+    "BRIEF_CREATOR",
+    "CONTACT_AGENCY",
+    "REVIEW_CONTRACTS",
+    "PULL_CLIP_ARCHIVE",
+    "ISSUE_APOLOGY_IMMEDIATELY",
+    "CONTACT_MEGACORP_PROACTIVELY",
+    "ISSUE_MEASURED_STATEMENT",
+    "ACTIVATE_LEGAL",
+    "CLOSE_INCIDENT",
+  ]),
+});
+
+export const TakeCosActionResponse = zod.object({
+  message: zod.string(),
+  severity: zod.enum(["good", "warning", "bad", "info"]),
+  state: zod.object({
+    time: zod.string(),
+    clipContextChecked: zod.boolean(),
+    brandPostPaused: zod.boolean(),
+    creatorBriefed: zod.boolean(),
+    agencyContacted: zod.boolean(),
+    megaCorpReachedOut: zod.boolean(),
+    legalConsulted: zod.boolean(),
+    statementIssued: zod.boolean(),
+    statementIssuedBeforeContextChecked: zod.boolean(),
+    apologyIssued: zod.boolean(),
+    contractsReviewed: zod.boolean(),
+    incidentClosed: zod.boolean(),
+    commandsRun: zod.array(zod.string()),
+    score: zod.object({
+      investigation: zod.number(),
+      crisisContainment: zod.number(),
+      stakeholderManagement: zod.number(),
+      creatorSupport: zod.number(),
+      communication: zod.number(),
+      prevention: zod.number(),
+    }),
+    feed: zod.array(
+      zod.object({
+        id: zod.string(),
+        time: zod.string(),
+        source: zod.string(),
+        message: zod.string(),
+        type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+      }),
+    ),
+    totalScore: zod.number(),
+    debrief: zod.string().nullable(),
+  }),
+});
+
+/**
+ * Send a message to a Creator HQ AI advisor and get a response
+ * @summary Query a Creator HQ AI advisor
+ */
+export const QueryCosAgentBody = zod.object({
+  agent: zod.enum([
+    "PR Strategist",
+    "Brand Manager",
+    "Legal Counsel",
+    "Devil's Advocate",
+  ]),
+  message: zod.string(),
+});
+
+export const QueryCosAgentResponse = zod.object({
+  agent: zod.string(),
+  response: zod.string(),
+  confidence: zod.string().nullable(),
+  toolsUsed: zod.array(zod.string()),
+});
+
+/**
+ * Reset the Creator HQ simulator to its initial state
+ * @summary Reset the Creator HQ simulator
+ */
+export const ResetCosSimulatorResponse = zod.object({
+  time: zod.string(),
+  clipContextChecked: zod.boolean(),
+  brandPostPaused: zod.boolean(),
+  creatorBriefed: zod.boolean(),
+  agencyContacted: zod.boolean(),
+  megaCorpReachedOut: zod.boolean(),
+  legalConsulted: zod.boolean(),
+  statementIssued: zod.boolean(),
+  statementIssuedBeforeContextChecked: zod.boolean(),
+  apologyIssued: zod.boolean(),
+  contractsReviewed: zod.boolean(),
+  incidentClosed: zod.boolean(),
+  commandsRun: zod.array(zod.string()),
+  score: zod.object({
+    investigation: zod.number(),
+    crisisContainment: zod.number(),
+    stakeholderManagement: zod.number(),
+    creatorSupport: zod.number(),
+    communication: zod.number(),
+    prevention: zod.number(),
+  }),
+  feed: zod.array(
+    zod.object({
+      id: zod.string(),
+      time: zod.string(),
+      source: zod.string(),
+      message: zod.string(),
+      type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+    }),
+  ),
+  totalScore: zod.number(),
+  debrief: zod.string().nullable(),
+});

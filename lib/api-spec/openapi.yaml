@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: simulator
     description: Incident simulator operations
+  - name: cos-simulator
+    description: Creator HQ Chief of Staff incident simulator operations
 paths:
   /healthz:
     get:
@@ -114,6 +116,94 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SimulatorState"
+
+  /cos-simulator/state:
+    get:
+      operationId: getCosSimulatorState
+      tags: [cos-simulator]
+      summary: Get Creator HQ simulator state
+      description: Returns the full in-memory Creator HQ simulator state
+      responses:
+        "200":
+          description: Current Creator HQ simulator state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CosSimulatorState"
+
+  /cos-simulator/command:
+    post:
+      operationId: runCosCommand
+      tags: [cos-simulator]
+      summary: Run a Creator HQ terminal command
+      description: Execute a simulated Creator HQ terminal command and get output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandRequest"
+      responses:
+        "200":
+          description: Command output
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CosCommandResponse"
+
+  /cos-simulator/action:
+    post:
+      operationId: takeCosAction
+      tags: [cos-simulator]
+      summary: Take a Creator HQ incident action
+      description: Execute a major Creator HQ incident action and update simulator state
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CosActionRequest"
+      responses:
+        "200":
+          description: Updated Creator HQ simulator state after action
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CosActionResponse"
+
+  /cos-simulator/agent:
+    post:
+      operationId: queryCosAgent
+      tags: [cos-simulator]
+      summary: Query a Creator HQ AI advisor
+      description: Send a message to a Creator HQ AI advisor and get a response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CosAgentRequest"
+      responses:
+        "200":
+          description: Advisor response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+
+  /cos-simulator/reset:
+    post:
+      operationId: resetCosSimulator
+      tags: [cos-simulator]
+      summary: Reset the Creator HQ simulator
+      description: Reset the Creator HQ simulator to its initial state
+      responses:
+        "200":
+          description: Reset Creator HQ simulator state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CosSimulatorState"
 
 components:
   schemas:
@@ -329,3 +419,148 @@ components:
         - response
         - confidence
         - toolsUsed
+
+    CosScoreBreakdown:
+      type: object
+      properties:
+        investigation:
+          type: integer
+        crisisContainment:
+          type: integer
+        stakeholderManagement:
+          type: integer
+        creatorSupport:
+          type: integer
+        communication:
+          type: integer
+        prevention:
+          type: integer
+      required:
+        - investigation
+        - crisisContainment
+        - stakeholderManagement
+        - creatorSupport
+        - communication
+        - prevention
+
+    CosSimulatorState:
+      type: object
+      properties:
+        time:
+          type: string
+        clipContextChecked:
+          type: boolean
+        brandPostPaused:
+          type: boolean
+        creatorBriefed:
+          type: boolean
+        agencyContacted:
+          type: boolean
+        megaCorpReachedOut:
+          type: boolean
+        legalConsulted:
+          type: boolean
+        statementIssued:
+          type: boolean
+        statementIssuedBeforeContextChecked:
+          type: boolean
+        apologyIssued:
+          type: boolean
+        contractsReviewed:
+          type: boolean
+        incidentClosed:
+          type: boolean
+        commandsRun:
+          type: array
+          items:
+            type: string
+        score:
+          $ref: "#/components/schemas/CosScoreBreakdown"
+        feed:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedEvent"
+        totalScore:
+          type: integer
+        debrief:
+          type: string
+          nullable: true
+      required:
+        - time
+        - clipContextChecked
+        - brandPostPaused
+        - creatorBriefed
+        - agencyContacted
+        - megaCorpReachedOut
+        - legalConsulted
+        - statementIssued
+        - statementIssuedBeforeContextChecked
+        - apologyIssued
+        - contractsReviewed
+        - incidentClosed
+        - commandsRun
+        - score
+        - feed
+        - totalScore
+        - debrief
+
+    CosCommandResponse:
+      type: object
+      properties:
+        output:
+          type: string
+        state:
+          $ref: "#/components/schemas/CosSimulatorState"
+      required:
+        - output
+        - state
+
+    CosActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+            - PAUSE_BRAND_POST
+            - BRIEF_CREATOR
+            - CONTACT_AGENCY
+            - REVIEW_CONTRACTS
+            - PULL_CLIP_ARCHIVE
+            - ISSUE_APOLOGY_IMMEDIATELY
+            - CONTACT_MEGACORP_PROACTIVELY
+            - ISSUE_MEASURED_STATEMENT
+            - ACTIVATE_LEGAL
+            - CLOSE_INCIDENT
+      required:
+        - action
+
+    CosActionResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [good, warning, bad, info]
+        state:
+          $ref: "#/components/schemas/CosSimulatorState"
+      required:
+        - message
+        - severity
+        - state
+
+    CosAgentRequest:
+      type: object
+      properties:
+        agent:
+          type: string
+          enum:
+            - PR Strategist
+            - Brand Manager
+            - Legal Counsel
+            - Devil's Advocate
+        message:
+          type: string
+      required:
+        - agent
+        - message
