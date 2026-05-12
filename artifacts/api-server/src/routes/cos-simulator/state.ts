@@ -30,6 +30,13 @@ export interface CosSimulatorState {
   statementIssued: boolean;
   statementIssuedBeforeContextChecked: boolean;
   apologyIssued: boolean;
+  statementDrafted: boolean;
+  statementTone: string | null;
+  statementChannels: string[];
+  statementMessages: string[];
+  dealNegotiated: boolean;
+  dealStance: string | null;
+  creatorPostedSolo: boolean;
   contractsReviewed: boolean;
   incidentClosed: boolean;
   commandsRun: string[];
@@ -60,6 +67,13 @@ export function createInitialState(): CosSimulatorState {
     statementIssued: false,
     statementIssuedBeforeContextChecked: false,
     apologyIssued: false,
+    statementDrafted: false,
+    statementTone: null,
+    statementChannels: [],
+    statementMessages: [],
+    dealNegotiated: false,
+    dealStance: null,
+    creatorPostedSolo: false,
     contractsReviewed: false,
     incidentClosed: false,
     commandsRun: [],
@@ -72,11 +86,13 @@ export function createInitialState(): CosSimulatorState {
       prevention: 0,
     },
     feed: [
-      makeEvent("09:47", "Twitter Alert", "Clip from 6-month-old stream is going viral — 12K views in 20 min", "critical"),
-      makeEvent("09:49", "Agency Slack", "Heads up: a clip is circulating. Context looks bad, tone feels off. Monitoring.", "warning"),
-      makeEvent("09:51", "MegaCorp Sponsor", "Inbound from MegaCorp brand team — they've seen the clip, deal on hold pending response", "critical"),
-      makeEvent("09:52", "Social Monitor", "Clip now at 28K views. Trending negative sentiment. Hashtag forming.", "bad"),
-      makeEvent("09:54", "Creator DM", "Creator messaged you: 'What is happening? I'm getting flooded with notifications'", "warning"),
+      makeEvent("09:47", "Social Monitor", "Clip from 6-month-old stream is going viral — 12K views in 20 min. Comment section turning hostile.", "critical"),
+      makeEvent("09:49", "Agency Slack", "Heads up: a clip is circulating. Context looks bad, tone feels off. Monitoring. Do NOT respond yet.", "warning"),
+      makeEvent("09:51", "MegaCorp Sponsor", "Inbound from MegaCorp brand team — they've seen the clip. Deal on hold pending your response. 6-hour window.", "critical"),
+      makeEvent("09:52", "Social Monitor", "Clip now at 28K views. Trending negative sentiment. Hashtag forming. 31% of commenters asking for context.", "bad"),
+      makeEvent("09:54", "Creator DM", "Creator messaged you: 'What is happening? I'm getting flooded with notifications. Should I respond?'", "warning"),
+      makeEvent("09:56", "Social Monitor", "Views at 67K. Media outlet @DigitalBeat just tweeted asking for comment. First press inquiry in.", "critical"),
+      makeEvent("09:58", "Agency Slack", "PR team flagging: do NOT issue apology before context is confirmed. This reads as sarcasm. Needs archive review.", "warning"),
     ],
     totalScore: 0,
     debrief: null,

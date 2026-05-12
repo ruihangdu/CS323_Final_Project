@@ -247,6 +247,13 @@ export const GetCosSimulatorStateResponse = zod.object({
   statementIssued: zod.boolean(),
   statementIssuedBeforeContextChecked: zod.boolean(),
   apologyIssued: zod.boolean(),
+  statementDrafted: zod.boolean(),
+  statementTone: zod.string().nullable(),
+  statementChannels: zod.array(zod.string()),
+  statementMessages: zod.array(zod.string()),
+  dealNegotiated: zod.boolean(),
+  dealStance: zod.string().nullable(),
+  creatorPostedSolo: zod.boolean(),
   contractsReviewed: zod.boolean(),
   incidentClosed: zod.boolean(),
   commandsRun: zod.array(zod.string()),
@@ -292,6 +299,13 @@ export const RunCosCommandResponse = zod.object({
     statementIssued: zod.boolean(),
     statementIssuedBeforeContextChecked: zod.boolean(),
     apologyIssued: zod.boolean(),
+    statementDrafted: zod.boolean(),
+    statementTone: zod.string().nullable(),
+    statementChannels: zod.array(zod.string()),
+    statementMessages: zod.array(zod.string()),
+    dealNegotiated: zod.boolean(),
+    dealStance: zod.string().nullable(),
+    creatorPostedSolo: zod.boolean(),
     contractsReviewed: zod.boolean(),
     incidentClosed: zod.boolean(),
     commandsRun: zod.array(zod.string()),
@@ -350,6 +364,13 @@ export const TakeCosActionResponse = zod.object({
     statementIssued: zod.boolean(),
     statementIssuedBeforeContextChecked: zod.boolean(),
     apologyIssued: zod.boolean(),
+    statementDrafted: zod.boolean(),
+    statementTone: zod.string().nullable(),
+    statementChannels: zod.array(zod.string()),
+    statementMessages: zod.array(zod.string()),
+    dealNegotiated: zod.boolean(),
+    dealStance: zod.string().nullable(),
+    creatorPostedSolo: zod.boolean(),
     contractsReviewed: zod.boolean(),
     incidentClosed: zod.boolean(),
     commandsRun: zod.array(zod.string()),
@@ -411,6 +432,13 @@ export const ResetCosSimulatorResponse = zod.object({
   statementIssued: zod.boolean(),
   statementIssuedBeforeContextChecked: zod.boolean(),
   apologyIssued: zod.boolean(),
+  statementDrafted: zod.boolean(),
+  statementTone: zod.string().nullable(),
+  statementChannels: zod.array(zod.string()),
+  statementMessages: zod.array(zod.string()),
+  dealNegotiated: zod.boolean(),
+  dealStance: zod.string().nullable(),
+  creatorPostedSolo: zod.boolean(),
   contractsReviewed: zod.boolean(),
   incidentClosed: zod.boolean(),
   commandsRun: zod.array(zod.string()),
@@ -433,6 +461,133 @@ export const ResetCosSimulatorResponse = zod.object({
   ),
   totalScore: zod.number(),
   debrief: zod.string().nullable(),
+});
+
+/**
+ * Submit a crafted statement with tone, key messages, channel choices, and timing decision
+ * @summary Draft and publish a public statement
+ */
+export const DraftCosStatementBody = zod.object({
+  tone: zod.enum(["context", "apology", "no_comment"]),
+  messages: zod.array(
+    zod.enum([
+      "clip_context",
+      "timestamp_clarification",
+      "transparency_commitment",
+      "apologize_if_offended",
+      "hit_piece_accusation",
+    ]),
+  ),
+  channels: zod.array(
+    zod.enum([
+      "twitter",
+      "youtube",
+      "instagram",
+      "press_release",
+      "newsletter",
+    ]),
+  ),
+  timing: zod.enum(["now", "wait_agency"]),
+});
+
+export const DraftCosStatementResponse = zod.object({
+  message: zod.string(),
+  severity: zod.enum(["good", "warning", "bad", "info"]),
+  state: zod.object({
+    time: zod.string(),
+    clipContextChecked: zod.boolean(),
+    brandPostPaused: zod.boolean(),
+    creatorBriefed: zod.boolean(),
+    agencyContacted: zod.boolean(),
+    megaCorpReachedOut: zod.boolean(),
+    legalConsulted: zod.boolean(),
+    statementIssued: zod.boolean(),
+    statementIssuedBeforeContextChecked: zod.boolean(),
+    apologyIssued: zod.boolean(),
+    statementDrafted: zod.boolean(),
+    statementTone: zod.string().nullable(),
+    statementChannels: zod.array(zod.string()),
+    statementMessages: zod.array(zod.string()),
+    dealNegotiated: zod.boolean(),
+    dealStance: zod.string().nullable(),
+    creatorPostedSolo: zod.boolean(),
+    contractsReviewed: zod.boolean(),
+    incidentClosed: zod.boolean(),
+    commandsRun: zod.array(zod.string()),
+    score: zod.object({
+      investigation: zod.number(),
+      crisisContainment: zod.number(),
+      stakeholderManagement: zod.number(),
+      creatorSupport: zod.number(),
+      communication: zod.number(),
+      prevention: zod.number(),
+    }),
+    feed: zod.array(
+      zod.object({
+        id: zod.string(),
+        time: zod.string(),
+        source: zod.string(),
+        message: zod.string(),
+        type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+      }),
+    ),
+    totalScore: zod.number(),
+    debrief: zod.string().nullable(),
+  }),
+});
+
+/**
+ * Submit a negotiation stance to manage the MegaCorp deal during the crisis
+ * @summary Negotiate the MegaCorp sponsorship deal
+ */
+export const NegotiateCosDealBody = zod.object({
+  stance: zod.enum(["transparency", "guarantees", "firm", "legal"]),
+});
+
+export const NegotiateCosDealResponse = zod.object({
+  message: zod.string(),
+  severity: zod.enum(["good", "warning", "bad", "info"]),
+  state: zod.object({
+    time: zod.string(),
+    clipContextChecked: zod.boolean(),
+    brandPostPaused: zod.boolean(),
+    creatorBriefed: zod.boolean(),
+    agencyContacted: zod.boolean(),
+    megaCorpReachedOut: zod.boolean(),
+    legalConsulted: zod.boolean(),
+    statementIssued: zod.boolean(),
+    statementIssuedBeforeContextChecked: zod.boolean(),
+    apologyIssued: zod.boolean(),
+    statementDrafted: zod.boolean(),
+    statementTone: zod.string().nullable(),
+    statementChannels: zod.array(zod.string()),
+    statementMessages: zod.array(zod.string()),
+    dealNegotiated: zod.boolean(),
+    dealStance: zod.string().nullable(),
+    creatorPostedSolo: zod.boolean(),
+    contractsReviewed: zod.boolean(),
+    incidentClosed: zod.boolean(),
+    commandsRun: zod.array(zod.string()),
+    score: zod.object({
+      investigation: zod.number(),
+      crisisContainment: zod.number(),
+      stakeholderManagement: zod.number(),
+      creatorSupport: zod.number(),
+      communication: zod.number(),
+      prevention: zod.number(),
+    }),
+    feed: zod.array(
+      zod.object({
+        id: zod.string(),
+        time: zod.string(),
+        source: zod.string(),
+        message: zod.string(),
+        type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+      }),
+    ),
+    totalScore: zod.number(),
+    debrief: zod.string().nullable(),
+  }),
 });
 
 /**

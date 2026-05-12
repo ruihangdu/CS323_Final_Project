@@ -137,6 +137,66 @@ export interface CosScoreBreakdown {
   prevention: number;
 }
 
+export type DraftStatementBodyTone =
+  (typeof DraftStatementBodyTone)[keyof typeof DraftStatementBodyTone];
+
+export const DraftStatementBodyTone = {
+  context: "context",
+  apology: "apology",
+  no_comment: "no_comment",
+} as const;
+
+export type DraftStatementBodyMessagesItem =
+  (typeof DraftStatementBodyMessagesItem)[keyof typeof DraftStatementBodyMessagesItem];
+
+export const DraftStatementBodyMessagesItem = {
+  clip_context: "clip_context",
+  timestamp_clarification: "timestamp_clarification",
+  transparency_commitment: "transparency_commitment",
+  apologize_if_offended: "apologize_if_offended",
+  hit_piece_accusation: "hit_piece_accusation",
+} as const;
+
+export type DraftStatementBodyChannelsItem =
+  (typeof DraftStatementBodyChannelsItem)[keyof typeof DraftStatementBodyChannelsItem];
+
+export const DraftStatementBodyChannelsItem = {
+  twitter: "twitter",
+  youtube: "youtube",
+  instagram: "instagram",
+  press_release: "press_release",
+  newsletter: "newsletter",
+} as const;
+
+export type DraftStatementBodyTiming =
+  (typeof DraftStatementBodyTiming)[keyof typeof DraftStatementBodyTiming];
+
+export const DraftStatementBodyTiming = {
+  now: "now",
+  wait_agency: "wait_agency",
+} as const;
+
+export interface DraftStatementBody {
+  tone: DraftStatementBodyTone;
+  messages: DraftStatementBodyMessagesItem[];
+  channels: DraftStatementBodyChannelsItem[];
+  timing: DraftStatementBodyTiming;
+}
+
+export type NegotiateDealBodyStance =
+  (typeof NegotiateDealBodyStance)[keyof typeof NegotiateDealBodyStance];
+
+export const NegotiateDealBodyStance = {
+  transparency: "transparency",
+  guarantees: "guarantees",
+  firm: "firm",
+  legal: "legal",
+} as const;
+
+export interface NegotiateDealBody {
+  stance: NegotiateDealBodyStance;
+}
+
 export interface CosSimulatorState {
   time: string;
   clipContextChecked: boolean;
@@ -148,6 +208,13 @@ export interface CosSimulatorState {
   statementIssued: boolean;
   statementIssuedBeforeContextChecked: boolean;
   apologyIssued: boolean;
+  statementDrafted: boolean;
+  statementTone: string | null;
+  statementChannels: string[];
+  statementMessages: string[];
+  dealNegotiated: boolean;
+  dealStance: string | null;
+  creatorPostedSolo: boolean;
   contractsReviewed: boolean;
   incidentClosed: boolean;
   commandsRun: string[];

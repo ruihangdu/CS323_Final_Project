@@ -33,8 +33,10 @@ import type {
   CustomAgentRequest,
   CustomCommandResponse,
   CustomSimulatorState,
+  DraftStatementBody,
   GenerateCustomScenarioRequest,
   HealthStatus,
+  NegotiateDealBody,
   SimulatorState,
 } from "./api.schemas";
 
@@ -959,6 +961,180 @@ export const useResetCosSimulator = <
   TContext
 > => {
   return useMutation(getResetCosSimulatorMutationOptions(options));
+};
+
+/**
+ * Submit a crafted statement with tone, key messages, channel choices, and timing decision
+ * @summary Draft and publish a public statement
+ */
+export const getDraftCosStatementUrl = () => {
+  return `/api/cos-simulator/draft-statement`;
+};
+
+export const draftCosStatement = async (
+  draftStatementBody: DraftStatementBody,
+  options?: RequestInit,
+): Promise<CosActionResponse> => {
+  return customFetch<CosActionResponse>(getDraftCosStatementUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(draftStatementBody),
+  });
+};
+
+export const getDraftCosStatementMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof draftCosStatement>>,
+    TError,
+    { data: BodyType<DraftStatementBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof draftCosStatement>>,
+  TError,
+  { data: BodyType<DraftStatementBody> },
+  TContext
+> => {
+  const mutationKey = ["draftCosStatement"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof draftCosStatement>>,
+    { data: BodyType<DraftStatementBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return draftCosStatement(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DraftCosStatementMutationResult = NonNullable<
+  Awaited<ReturnType<typeof draftCosStatement>>
+>;
+export type DraftCosStatementMutationBody = BodyType<DraftStatementBody>;
+export type DraftCosStatementMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Draft and publish a public statement
+ */
+export const useDraftCosStatement = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof draftCosStatement>>,
+    TError,
+    { data: BodyType<DraftStatementBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof draftCosStatement>>,
+  TError,
+  { data: BodyType<DraftStatementBody> },
+  TContext
+> => {
+  return useMutation(getDraftCosStatementMutationOptions(options));
+};
+
+/**
+ * Submit a negotiation stance to manage the MegaCorp deal during the crisis
+ * @summary Negotiate the MegaCorp sponsorship deal
+ */
+export const getNegotiateCosDealUrl = () => {
+  return `/api/cos-simulator/negotiate-deal`;
+};
+
+export const negotiateCosDeal = async (
+  negotiateDealBody: NegotiateDealBody,
+  options?: RequestInit,
+): Promise<CosActionResponse> => {
+  return customFetch<CosActionResponse>(getNegotiateCosDealUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(negotiateDealBody),
+  });
+};
+
+export const getNegotiateCosDealMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof negotiateCosDeal>>,
+    TError,
+    { data: BodyType<NegotiateDealBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof negotiateCosDeal>>,
+  TError,
+  { data: BodyType<NegotiateDealBody> },
+  TContext
+> => {
+  const mutationKey = ["negotiateCosDeal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof negotiateCosDeal>>,
+    { data: BodyType<NegotiateDealBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return negotiateCosDeal(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type NegotiateCosDealMutationResult = NonNullable<
+  Awaited<ReturnType<typeof negotiateCosDeal>>
+>;
+export type NegotiateCosDealMutationBody = BodyType<NegotiateDealBody>;
+export type NegotiateCosDealMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Negotiate the MegaCorp sponsorship deal
+ */
+export const useNegotiateCosDeal = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof negotiateCosDeal>>,
+    TError,
+    { data: BodyType<NegotiateDealBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof negotiateCosDeal>>,
+  TError,
+  { data: BodyType<NegotiateDealBody> },
+  TContext
+> => {
+  return useMutation(getNegotiateCosDealMutationOptions(options));
 };
 
 /**

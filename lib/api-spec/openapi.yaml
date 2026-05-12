@@ -207,6 +207,46 @@ paths:
               schema:
                 $ref: "#/components/schemas/CosSimulatorState"
 
+  /cos-simulator/draft-statement:
+    post:
+      operationId: draftCosStatement
+      tags: [cos-simulator]
+      summary: Draft and publish a public statement
+      description: Submit a crafted statement with tone, key messages, channel choices, and timing decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DraftStatementBody"
+      responses:
+        "200":
+          description: Statement result with feedback and updated state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CosActionResponse"
+
+  /cos-simulator/negotiate-deal:
+    post:
+      operationId: negotiateCosDeal
+      tags: [cos-simulator]
+      summary: Negotiate the MegaCorp sponsorship deal
+      description: Submit a negotiation stance to manage the MegaCorp deal during the crisis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NegotiateDealBody"
+      responses:
+        "200":
+          description: Negotiation result with feedback and updated state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CosActionResponse"
+
   /custom-simulator/generate:
     post:
       operationId: generateCustomScenario
@@ -553,6 +593,35 @@ components:
         - communication
         - prevention
 
+    DraftStatementBody:
+      type: object
+      required: [tone, messages, channels, timing]
+      properties:
+        tone:
+          type: string
+          enum: [context, apology, no_comment]
+        messages:
+          type: array
+          items:
+            type: string
+            enum: [clip_context, timestamp_clarification, transparency_commitment, apologize_if_offended, hit_piece_accusation]
+        channels:
+          type: array
+          items:
+            type: string
+            enum: [twitter, youtube, instagram, press_release, newsletter]
+        timing:
+          type: string
+          enum: [now, wait_agency]
+
+    NegotiateDealBody:
+      type: object
+      required: [stance]
+      properties:
+        stance:
+          type: string
+          enum: [transparency, guarantees, firm, legal]
+
     CosSimulatorState:
       type: object
       properties:
@@ -575,6 +644,26 @@ components:
         statementIssuedBeforeContextChecked:
           type: boolean
         apologyIssued:
+          type: boolean
+        statementDrafted:
+          type: boolean
+        statementTone:
+          type: string
+          nullable: true
+        statementChannels:
+          type: array
+          items:
+            type: string
+        statementMessages:
+          type: array
+          items:
+            type: string
+        dealNegotiated:
+          type: boolean
+        dealStance:
+          type: string
+          nullable: true
+        creatorPostedSolo:
           type: boolean
         contractsReviewed:
           type: boolean
@@ -606,6 +695,13 @@ components:
         - statementIssued
         - statementIssuedBeforeContextChecked
         - apologyIssued
+        - statementDrafted
+        - statementTone
+        - statementChannels
+        - statementMessages
+        - dealNegotiated
+        - dealStance
+        - creatorPostedSolo
         - contractsReviewed
         - incidentClosed
         - commandsRun

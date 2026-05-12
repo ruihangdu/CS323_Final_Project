@@ -19,6 +19,13 @@ export interface CosSimulatorState {
   statementIssued: boolean;
   statementIssuedBeforeContextChecked: boolean;
   apologyIssued: boolean;
+  statementDrafted: boolean;
+  statementTone: string | null;
+  statementChannels: string[];
+  statementMessages: string[];
+  dealNegotiated: boolean;
+  dealStance: string | null;
+  creatorPostedSolo: boolean;
   contractsReviewed: boolean;
   incidentClosed: boolean;
   commandsRun: string[];

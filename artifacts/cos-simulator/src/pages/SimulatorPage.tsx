@@ -22,9 +22,16 @@ import {
   useTakeCosAction,
   useQueryCosAgent,
   useResetCosSimulator,
+  useDraftCosStatement,
+  useNegotiateCosDeal,
   getGetCosSimulatorStateQueryKey,
   CosActionRequestAction,
   CosAgentRequestAgent,
+  DraftStatementBodyTone,
+  DraftStatementBodyMessagesItem,
+  DraftStatementBodyChannelsItem,
+  DraftStatementBodyTiming,
+  NegotiateDealBodyStance,
   type CosSimulatorState,
   type CosScoreBreakdown,
   type FeedEvent,
@@ -518,9 +525,315 @@ function AIAdvisorPanel() {
   );
 }
 
+function StatementDraftModal({
+  isOpen,
+  onClose,
+  state,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  state: CosSimulatorState;
+  onSuccess: () => void;
+}) {
+  const [step, setStep] = useState(1);
+  const [tone, setTone] = useState<DraftStatementBodyTone | null>(null);
+  const [messages, setMessages] = useState<DraftStatementBodyMessagesItem[]>([]);
+  const [channels, setChannels] = useState<DraftStatementBodyChannelsItem[]>([]);
+  const [timing, setTiming] = useState<DraftStatementBodyTiming>(DraftStatementBodyTiming.now);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const draftStatement = useDraftCosStatement();
+
+  const toggleMsg = (m: DraftStatementBodyMessagesItem) =>
+    setMessages(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+  const toggleChan = (c: DraftStatementBodyChannelsItem) =>
+    setChannels(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
+
+  const handleSubmit = () => {
+    if (!tone) return;
+    draftStatement.mutate(
+      { data: { tone, messages, channels, timing } },
+      {
+        onSuccess: (data) => {
+          setFeedback(data.message);
+          onSuccess();
+        },
+      }
+    );
+  };
+
+  const reset = () => {
+    setStep(1); setTone(null); setMessages([]); setChannels([]);
+    setTiming(DraftStatementBodyTiming.now); setFeedback(null);
+  };
+
+  const TONES = [
+    { id: DraftStatementBodyTone.context, label: "Provide context & correct the record", desc: "Set the facts straight — cite the full clip and timestamp", recommended: state.clipContextChecked },
+    { id: DraftStatementBodyTone.apology, label: "Issue an apology", desc: "Apologize for any confusion or offense", warn: "⚠ Risky if clip wasn't genuinely offensive" },
+    { id: DraftStatementBodyTone.no_comment, label: "No comment at this time", desc: "Stay silent publicly while managing internally", warn: "⚠ Evasive during a trending crisis" },
+  ];
+
+  const MESSAGES = [
+    { id: DraftStatementBodyMessagesItem.clip_context, label: "Cite the full clip context with a direct link", safe: true },
+    { id: DraftStatementBodyMessagesItem.timestamp_clarification, label: "Reference the creator's correction at timestamp 02:15:10", safe: true },
+    { id: DraftStatementBodyMessagesItem.transparency_commitment, label: "Commit to transparency and further updates", safe: true },
+    { id: DraftStatementBodyMessagesItem.apologize_if_offended, label: "Apologize to anyone who was offended", safe: false, warn: "Implies genuine wrongdoing" },
+    { id: DraftStatementBodyMessagesItem.hit_piece_accusation, label: "Call out the clip as a deliberate hit piece", safe: false, warn: "Sounds conspiratorial without full evidence" },
+  ];
+
+  const CHANNELS = [
+    { id: DraftStatementBodyChannelsItem.twitter, label: "Twitter / X", desc: "Where the crisis is trending right now", recommended: true },
+    { id: DraftStatementBodyChannelsItem.youtube, label: "YouTube Community", desc: "Loyal audience, good for longer context posts", recommended: true },
+    { id: DraftStatementBodyChannelsItem.instagram, label: "Instagram Story", desc: "Visual, ephemeral — disappears in 24h", warn: true },
+    { id: DraftStatementBodyChannelsItem.press_release, label: "Press Release", desc: "Distributes to media outlets not yet covering this", warn: true },
+    { id: DraftStatementBodyChannelsItem.newsletter, label: "Creator Newsletter", desc: "Existing audience only — too slow for trending", warn: false },
+  ];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(o) => { if (!o) { onClose(); reset(); } }}>
+      <DialogContent className="max-w-lg bg-card border-border">
+        <DialogHeader>
+          <DialogTitle className="font-mono text-base text-primary flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            Draft Public Statement — Step {feedback ? "✓" : step}/3
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground font-mono">
+            {!feedback && step === 1 && "Choose your statement tone carefully — this sets the narrative frame."}
+            {!feedback && step === 2 && "Select the key points to include. Choose wisely — wrong messages penalize."}
+            {!feedback && step === 3 && "Choose where and when to publish. Platform matters as much as the message."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {feedback ? (
+          <div className="space-y-3">
+            <div className="text-sm leading-relaxed whitespace-pre-wrap bg-background p-4 rounded-md border border-border font-mono text-foreground max-h-64 overflow-y-auto">
+              {feedback}
+            </div>
+            <Button className="w-full font-mono text-xs" onClick={() => { onClose(); reset(); }}>
+              Close
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {step === 1 && (
+              <div className="space-y-2">
+                {TONES.map(t => (
+                  <button key={t.id} onClick={() => setTone(t.id)}
+                    className={`w-full text-left p-3 rounded-md border text-sm transition-all ${tone === t.id ? "border-primary bg-primary/10" : "border-border bg-background hover:border-primary/50"}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="font-semibold text-foreground">{t.label}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{t.desc}</div>
+                        {t.warn && <div className="text-xs text-amber-500 mt-0.5">{t.warn}</div>}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {t.recommended && <span className="text-[9px] font-mono bg-green-500/20 text-green-600 px-1.5 py-0.5 rounded">RECOMMENDED</span>}
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${tone === t.id ? "border-primary bg-primary" : "border-border"}`}>
+                          {tone === t.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+                <Button className="w-full font-mono text-xs mt-2" disabled={!tone} onClick={() => setStep(2)}>
+                  Next: Key Messages →
+                </Button>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground font-mono">Select any combination — good choices add points, bad ones subtract.</p>
+                {MESSAGES.map(m => (
+                  <button key={m.id} onClick={() => toggleMsg(m.id)}
+                    className={`w-full text-left p-3 rounded-md border text-sm transition-all ${messages.includes(m.id) ? (m.safe ? "border-primary bg-primary/10" : "border-amber-500 bg-amber-500/10") : "border-border bg-background hover:border-primary/50"}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${messages.includes(m.id) ? (m.safe ? "border-primary bg-primary" : "border-amber-500 bg-amber-500") : "border-border"}`}>
+                        {messages.includes(m.id) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                      </div>
+                      <div>
+                        <div className={`font-medium ${m.safe ? "text-foreground" : "text-amber-600"}`}>{m.label}</div>
+                        {m.warn && <div className="text-xs text-amber-500 mt-0.5">⚠ {m.warn}</div>}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+                <div className="flex gap-2 mt-2">
+                  <Button variant="outline" className="flex-1 font-mono text-xs" onClick={() => setStep(1)}>← Back</Button>
+                  <Button className="flex-1 font-mono text-xs" onClick={() => setStep(3)}>Next: Channels →</Button>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Publish on</div>
+                  {CHANNELS.map(c => (
+                    <button key={c.id} onClick={() => toggleChan(c.id)}
+                      className={`w-full text-left p-2.5 rounded-md border text-sm transition-all ${channels.includes(c.id) ? (c.warn ? "border-amber-500 bg-amber-500/10" : "border-primary bg-primary/10") : "border-border bg-background hover:border-primary/50"}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-4 h-4 rounded border-2 shrink-0 flex items-center justify-center ${channels.includes(c.id) ? (c.warn ? "border-amber-500 bg-amber-500" : "border-primary bg-primary") : "border-border"}`}>
+                          {channels.includes(c.id) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                        </div>
+                        <div>
+                          <span className="font-medium text-foreground">{c.label}</span>
+                          {c.recommended && <span className="ml-2 text-[9px] font-mono bg-green-500/20 text-green-600 px-1 py-0.5 rounded">RECOMMENDED</span>}
+                          {c.warn && <span className="ml-2 text-[9px] font-mono bg-amber-500/20 text-amber-600 px-1 py-0.5 rounded">⚠ RISKY</span>}
+                          <div className="text-xs text-muted-foreground">{c.desc}</div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Timing</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: DraftStatementBodyTiming.now, label: "Post Now", desc: "While trending — maximum reach" },
+                      { id: DraftStatementBodyTiming.wait_agency, label: "Wait for Agency", desc: "Safer — coordinated messaging" },
+                    ].map(t => (
+                      <button key={t.id} onClick={() => setTiming(t.id)}
+                        className={`text-left p-2.5 rounded-md border text-sm transition-all ${timing === t.id ? "border-primary bg-primary/10" : "border-border bg-background hover:border-primary/50"}`}>
+                        <div className="font-medium text-foreground text-xs">{t.label}</div>
+                        <div className="text-xs text-muted-foreground">{t.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1 font-mono text-xs" onClick={() => setStep(2)}>← Back</Button>
+                  <Button className="flex-1 font-mono text-xs" disabled={channels.length === 0 || draftStatement.isPending} onClick={handleSubmit}>
+                    {draftStatement.isPending ? "Publishing..." : "Publish Statement"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NegotiateModal({
+  isOpen,
+  onClose,
+  state,
+  onSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  state: CosSimulatorState;
+  onSuccess: () => void;
+}) {
+  const [stance, setStance] = useState<NegotiateDealBodyStance | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const negotiateDeal = useNegotiateCosDeal();
+  const queryClient = useQueryClient();
+
+  const handleSubmit = () => {
+    if (!stance) return;
+    negotiateDeal.mutate(
+      { data: { stance } },
+      {
+        onSuccess: (data) => {
+          setFeedback(data.message);
+          queryClient.invalidateQueries({ queryKey: getGetCosSimulatorStateQueryKey() });
+          onSuccess();
+        },
+      }
+    );
+  };
+
+  const reset = () => { setStance(null); setFeedback(null); };
+
+  const STANCES = [
+    {
+      id: NegotiateDealBodyStance.transparency,
+      label: "Full transparency",
+      desc: "Share the archive evidence and crisis response plan directly with their brand team",
+      badge: "RECOMMENDED",
+      badgeColor: "bg-green-500/20 text-green-600",
+    },
+    {
+      id: NegotiateDealBodyStance.guarantees,
+      label: "Offer performance guarantees",
+      desc: "Propose makeup content, bonus deliverables, or a rate reduction as goodwill",
+      badge: "SHOWS WEAKNESS",
+      badgeColor: "bg-amber-500/20 text-amber-600",
+    },
+    {
+      id: NegotiateDealBodyStance.firm,
+      label: "Hold firm",
+      desc: "Remind them of mutual contractual obligations and request a 48-hour review period",
+      badge: state.clipContextChecked && state.contractsReviewed && state.legalConsulted ? "HIGH RISK / HIGH REWARD" : "DANGEROUS WITHOUT EVIDENCE",
+      badgeColor: state.clipContextChecked && state.contractsReviewed && state.legalConsulted ? "bg-amber-500/20 text-amber-600" : "bg-red-500/20 text-red-600",
+    },
+    {
+      id: NegotiateDealBodyStance.legal,
+      label: "Escalate to legal threats",
+      desc: "Have our entertainment lawyer contact their legal team directly",
+      badge: "⚠ NUCLEAR OPTION",
+      badgeColor: "bg-red-500/20 text-red-600",
+    },
+  ];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(o) => { if (!o) { onClose(); reset(); } }}>
+      <DialogContent className="max-w-lg bg-card border-border">
+        <DialogHeader>
+          <DialogTitle className="font-mono text-base text-primary flex items-center gap-2">
+            <Users className="w-4 h-4" /> Negotiate MegaCorp Deal
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground font-mono">
+            The $240K deal is on hold. Choose your negotiation approach — this determines whether the deal survives.
+            {!state.clipContextChecked && <span className="block text-amber-500 mt-1">⚠ You haven't reviewed the clip archive yet — your negotiating position is weak without evidence.</span>}
+            {!state.contractsReviewed && <span className="block text-amber-500 mt-0.5">⚠ Contracts not reviewed — you may not know your Clause 7.5 standing.</span>}
+          </DialogDescription>
+        </DialogHeader>
+
+        {feedback ? (
+          <div className="space-y-3">
+            <div className="text-sm leading-relaxed whitespace-pre-wrap bg-background p-4 rounded-md border border-border font-mono text-foreground max-h-64 overflow-y-auto">
+              {feedback}
+            </div>
+            <Button className="w-full font-mono text-xs" onClick={() => { onClose(); reset(); }}>Close</Button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {STANCES.map(s => (
+              <button key={s.id} onClick={() => setStance(s.id)}
+                className={`w-full text-left p-3 rounded-md border text-sm transition-all ${stance === s.id ? "border-primary bg-primary/10" : "border-border bg-background hover:border-primary/50"}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-semibold text-foreground">{s.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{s.desc}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${s.badgeColor}`}>{s.badge}</span>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${stance === s.id ? "border-primary bg-primary" : "border-border"}`}>
+                      {stance === s.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+            <Button className="w-full font-mono text-xs mt-2" disabled={!stance || negotiateDeal.isPending} onClick={handleSubmit}>
+              {negotiateDeal.isPending ? "Negotiating..." : "Submit Negotiation Stance"}
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ActionPanel({ state }: { state: CosSimulatorState }) {
   const takeAction = useTakeCosAction();
   const queryClient = useQueryClient();
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [negotiateOpen, setNegotiateOpen] = useState(false);
 
   const handleAction = (action: CosActionRequestAction) => {
     takeAction.mutate(
@@ -534,6 +847,8 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
       }
     );
   };
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: getGetCosSimulatorStateQueryKey() });
 
   const ActionBtn = ({
     id,
@@ -552,9 +867,7 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
       variant={isTaken ? "secondary" : variant}
       className={`w-full justify-start font-mono text-xs ${isTaken ? "opacity-50 cursor-not-allowed" : ""} ${urgent && !isTaken ? "ring-1 ring-amber-500" : ""}`}
       onClick={() => handleAction(id)}
-      disabled={
-        isTaken || takeAction.isPending || state.incidentClosed
-      }
+      disabled={isTaken || takeAction.isPending || state.incidentClosed}
       data-testid={`btn-action-${id}`}
     >
       {isTaken ? (
@@ -567,108 +880,145 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
   );
 
   return (
-    <Card className="flex-1 flex flex-col min-h-0 border-border bg-card">
-      <CardHeader className="py-3 px-4 border-b border-border shrink-0">
-        <CardTitle className="text-sm font-mono flex items-center text-primary">
-          <AlertCircle className="w-4 h-4 mr-2" /> DECISIONS & ACTIONS
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 p-4 overflow-y-auto space-y-5">
-        <div className="space-y-2">
-          <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
-            Containment
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            <ActionBtn
-              id={CosActionRequestAction.PAUSE_BRAND_POST}
-              label="Pause Brand Post"
-              isTaken={state.brandPostPaused}
-              variant="destructive"
-              urgent={true}
-            />
-            <ActionBtn
-              id={CosActionRequestAction.BRIEF_CREATOR}
-              label="Brief Creator"
-              isTaken={state.creatorBriefed}
-              variant="outline"
-            />
-          </div>
-        </div>
+    <>
+      <StatementDraftModal
+        isOpen={draftOpen}
+        onClose={() => setDraftOpen(false)}
+        state={state}
+        onSuccess={invalidate}
+      />
+      <NegotiateModal
+        isOpen={negotiateOpen}
+        onClose={() => setNegotiateOpen(false)}
+        state={state}
+        onSuccess={invalidate}
+      />
 
-        <div className="space-y-2">
-          <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
-            Investigation
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            <ActionBtn
-              id={CosActionRequestAction.REVIEW_CONTRACTS}
-              label="Review Contracts"
-              isTaken={state.contractsReviewed}
-              variant="outline"
-            />
-            <ActionBtn
-              id={CosActionRequestAction.PULL_CLIP_ARCHIVE}
-              label="Pull Clip Archive"
-              isTaken={state.clipContextChecked}
-              variant="outline"
-            />
+      <Card className="flex-1 flex flex-col min-h-0 border-border bg-card">
+        <CardHeader className="py-3 px-4 border-b border-border shrink-0">
+          <CardTitle className="text-sm font-mono flex items-center text-primary">
+            <AlertCircle className="w-4 h-4 mr-2" /> DECISIONS & ACTIONS
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 p-4 overflow-y-auto space-y-5">
+          <div className="space-y-2">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
+              Containment
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <ActionBtn
+                id={CosActionRequestAction.PAUSE_BRAND_POST}
+                label="Pause Brand Post"
+                isTaken={state.brandPostPaused}
+                variant="destructive"
+                urgent={true}
+              />
+              <ActionBtn
+                id={CosActionRequestAction.BRIEF_CREATOR}
+                label="Brief Creator"
+                isTaken={state.creatorBriefed}
+                variant="outline"
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
-            Response
-          </h3>
-          <div className="flex flex-col gap-2">
-            <ActionBtn
-              id={CosActionRequestAction.ISSUE_APOLOGY_IMMEDIATELY}
-              label="Issue Immediate Apology"
-              isTaken={state.apologyIssued}
-              variant="destructive"
-            />
-            <ActionBtn
-              id={CosActionRequestAction.ISSUE_MEASURED_STATEMENT}
-              label="Issue Measured Statement"
-              isTaken={state.statementIssued && !state.apologyIssued}
-              variant="default"
-            />
+          <div className="space-y-2">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
+              Investigation
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <ActionBtn
+                id={CosActionRequestAction.REVIEW_CONTRACTS}
+                label="Review Contracts"
+                isTaken={state.contractsReviewed}
+                variant="outline"
+              />
+              <ActionBtn
+                id={CosActionRequestAction.PULL_CLIP_ARCHIVE}
+                label="Pull Clip Archive"
+                isTaken={state.clipContextChecked}
+                variant="outline"
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
-            Recovery
-          </h3>
-          <div className="grid grid-cols-2 gap-2">
-            <ActionBtn
-              id={CosActionRequestAction.CONTACT_AGENCY}
-              label="Contact Agency"
-              isTaken={state.agencyContacted}
-              variant="outline"
-            />
-            <ActionBtn
-              id={CosActionRequestAction.CONTACT_MEGACORP_PROACTIVELY}
-              label="Contact MegaCorp"
-              isTaken={state.megaCorpReachedOut}
-              variant="outline"
-              urgent={!state.megaCorpReachedOut}
-            />
-            <ActionBtn
-              id={CosActionRequestAction.ACTIVATE_LEGAL}
-              label="Activate Legal"
-              isTaken={state.legalConsulted}
-              variant="outline"
-            />
-            <ActionBtn
-              id={CosActionRequestAction.CLOSE_INCIDENT}
-              label="Close Incident"
-              isTaken={state.incidentClosed}
-              variant="default"
-            />
+          <div className="space-y-2">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
+              Response
+            </h3>
+            <div className="flex flex-col gap-2">
+              <ActionBtn
+                id={CosActionRequestAction.ISSUE_APOLOGY_IMMEDIATELY}
+                label="Issue Immediate Apology"
+                isTaken={state.apologyIssued}
+                variant="destructive"
+              />
+              <Button
+                variant={state.statementDrafted ? "secondary" : "default"}
+                className={`w-full justify-start font-mono text-xs ${state.statementDrafted ? "opacity-50 cursor-not-allowed" : "ring-1 ring-primary/40"}`}
+                disabled={state.statementIssued || state.incidentClosed}
+                onClick={() => setDraftOpen(true)}
+                data-testid="btn-action-DRAFT_STATEMENT"
+              >
+                {state.statementDrafted ? (
+                  <CheckCircle2 className="w-3 h-3 mr-2" />
+                ) : (
+                  <div className="w-3 h-3 mr-2 opacity-50 border border-current rounded-full" />
+                )}
+                {state.statementDrafted ? "Statement Published" : "Draft Statement…"}
+              </Button>
+            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+
+          <div className="space-y-2">
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
+              Recovery
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <ActionBtn
+                id={CosActionRequestAction.CONTACT_AGENCY}
+                label="Contact Agency"
+                isTaken={state.agencyContacted}
+                variant="outline"
+              />
+              <ActionBtn
+                id={CosActionRequestAction.CONTACT_MEGACORP_PROACTIVELY}
+                label="Contact MegaCorp"
+                isTaken={state.megaCorpReachedOut}
+                variant="outline"
+                urgent={!state.megaCorpReachedOut}
+              />
+              <ActionBtn
+                id={CosActionRequestAction.ACTIVATE_LEGAL}
+                label="Activate Legal"
+                isTaken={state.legalConsulted}
+                variant="outline"
+              />
+              <Button
+                variant={state.dealNegotiated ? "secondary" : "outline"}
+                className={`w-full justify-start font-mono text-xs ${state.dealNegotiated ? "opacity-50 cursor-not-allowed" : ""} ${state.megaCorpReachedOut && !state.dealNegotiated ? "ring-1 ring-amber-500" : ""}`}
+                disabled={!state.megaCorpReachedOut || state.dealNegotiated || state.incidentClosed}
+                onClick={() => setNegotiateOpen(true)}
+                data-testid="btn-action-NEGOTIATE_DEAL"
+              >
+                {state.dealNegotiated ? (
+                  <CheckCircle2 className="w-3 h-3 mr-2" />
+                ) : (
+                  <div className="w-3 h-3 mr-2 opacity-50 border border-current rounded-full" />
+                )}
+                {state.dealNegotiated ? "Deal Negotiated" : "Negotiate Deal…"}
+              </Button>
+              <ActionBtn
+                id={CosActionRequestAction.CLOSE_INCIDENT}
+                label="Close Incident"
+                isTaken={state.incidentClosed}
+                variant="default"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
