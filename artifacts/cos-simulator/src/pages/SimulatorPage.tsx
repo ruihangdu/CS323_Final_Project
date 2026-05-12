@@ -74,14 +74,14 @@ function useBranding() {
   const devopsParams = new URLSearchParams(window.location.search).toString();
   const devopsUrl = `/sim${devopsParams ? `?${devopsParams}` : ""}`;
 
-  return { companyName, companySlug, devopsUrl };
+  return { companyName, companySlug, devopsUrl, brand };
 }
 
 export default function SimulatorPage() {
   const queryClient = useQueryClient();
   const [sessionKey, setSessionKey] = useState(0);
   const [debriefDismissed, setDebriefDismissed] = useState(false);
-  const { companyName, companySlug, devopsUrl } = useBranding();
+  const { companyName, companySlug, devopsUrl, brand } = useBranding();
   const { data: state, isLoading } = useGetCosSimulatorState({
     query: {
       refetchInterval: 3000,
@@ -178,7 +178,7 @@ export default function SimulatorPage() {
       <div className="flex-1 grid grid-cols-12 gap-4 p-4 min-h-0">
         {/* Left Column: Feed & Terminal */}
         <div className="col-span-4 flex flex-col gap-4 min-h-0">
-          <SituationFeed feed={state.feed} />
+          <SituationFeed feed={state.feed} brand={brand} />
           <TerminalConsole key={sessionKey} companySlug={companySlug} />
         </div>
 
@@ -208,7 +208,15 @@ export default function SimulatorPage() {
   );
 }
 
-function SituationFeed({ feed }: { feed: FeedEvent[] }) {
+const FEED_TYPE_CFG: Record<string, { border: string; avatar: string; avatarText: string }> = {
+  critical: { border: "#dc2626", avatar: "#fee2e2", avatarText: "#991b1b" },
+  bad:      { border: "#ea580c", avatar: "#ffedd5", avatarText: "#9a3412" },
+  warning:  { border: "#d97706", avatar: "#fef3c7", avatarText: "#92400e" },
+  good:     { border: "#16a34a", avatar: "#dcfce7", avatarText: "#14532d" },
+  info:     { border: "#94a3b8", avatar: "#f8fafc", avatarText: "#475569" },
+};
+
+function SituationFeed({ feed, brand }: { feed: FeedEvent[]; brand: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -221,44 +229,47 @@ function SituationFeed({ feed }: { feed: FeedEvent[] }) {
     <Card className="flex-1 flex flex-col min-h-0 border-border bg-card">
       <CardHeader className="py-3 px-4 border-b border-border shrink-0">
         <CardTitle className="text-sm font-mono flex items-center text-primary">
-          <Clock className="w-4 h-4 mr-2" /> SITUATION FEED
+          <Clock className="w-4 h-4 mr-2" /> {brand === "editorial" ? "Messages" : "SITUATION FEED"}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex-1 p-0 overflow-y-auto" ref={scrollRef}>
-        <div className="flex flex-col p-4 gap-3">
+        <div className={`flex flex-col p-4 ${brand === "editorial" ? "gap-2" : "gap-3"}`}>
           {feed.map((event) => {
+            if (brand === "editorial") {
+              const words = event.source.replace(/_/g, " ").split(/\s+/).filter(Boolean);
+              const initials = words.map(w => w[0]).join("").slice(0, 2).toUpperCase();
+              const displayName = words.map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
+              const cfg = FEED_TYPE_CFG[event.type] ?? FEED_TYPE_CFG.info;
+              return (
+                <div key={event.id}
+                  className="flex gap-3 p-3 rounded-lg bg-white animate-in slide-in-from-bottom-2 fade-in"
+                  style={{ borderLeft: `3px solid ${cfg.border}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
+                >
+                  <div className="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-[11px] font-bold"
+                    style={{ background: cfg.avatar, color: cfg.avatarText }}>
+                    {initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                      <span className="text-xs font-semibold" style={{ color: cfg.avatarText }}>{displayName}</span>
+                      <span className="text-[10px] text-muted-foreground shrink-0 font-mono">{event.time}</span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-foreground">{event.message}</p>
+                  </div>
+                </div>
+              );
+            }
             let color = "text-muted-foreground";
             let badgeClass = "border-border text-muted-foreground";
-            if (event.type === "critical") {
-              color = "text-destructive";
-              badgeClass =
-                "border-destructive text-destructive bg-destructive/10";
-            }
-            if (event.type === "bad") {
-              color = "text-orange-500";
-              badgeClass =
-                "border-orange-500 text-orange-500 bg-orange-500/10";
-            }
-            if (event.type === "warning") {
-              color = "text-amber-500";
-            }
-            if (event.type === "good") {
-              color = "text-green-500";
-            }
-
+            if (event.type === "critical") { color = "text-destructive"; badgeClass = "border-destructive text-destructive bg-destructive/10"; }
+            if (event.type === "bad") { color = "text-orange-500"; badgeClass = "border-orange-500 text-orange-500 bg-orange-500/10"; }
+            if (event.type === "warning") { color = "text-amber-500"; }
+            if (event.type === "good") { color = "text-green-500"; }
             return (
-              <div
-                key={event.id}
-                className="flex flex-col gap-1 text-sm animate-in slide-in-from-bottom-2 fade-in"
-              >
+              <div key={event.id} className="flex flex-col gap-1 text-sm animate-in slide-in-from-bottom-2 fade-in">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {event.time}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] px-1.5 py-0 h-4 rounded-sm font-mono uppercase ${badgeClass}`}
-                  >
+                  <span className="font-mono text-xs text-muted-foreground">{event.time}</span>
+                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-4 rounded-sm font-mono uppercase ${badgeClass}`}>
                     {event.source}
                   </Badge>
                 </div>
