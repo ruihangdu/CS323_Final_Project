@@ -44,16 +44,31 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+const FONT_URLS: Record<string, string> = {
+  dev: "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap",
+  editorial: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=DM+Mono:wght@400;500&display=swap",
+};
+
 function useBranding() {
   const params = new URLSearchParams(window.location.search);
   const companyName = params.get("company") || "Creator HQ";
   const accentColor = params.get("color");
   const accentFg = params.get("fg");
+  const brand = params.get("brand") || "editorial";
 
   useEffect(() => {
     if (accentColor) document.documentElement.style.setProperty("--primary", accentColor);
     if (accentFg) document.documentElement.style.setProperty("--primary-foreground", accentFg);
-  }, [accentColor, accentFg]);
+    document.documentElement.setAttribute("data-brand", brand);
+    const url = FONT_URLS[brand];
+    if (url && !document.getElementById(`font-brand-${brand}`)) {
+      const link = document.createElement("link");
+      link.id = `font-brand-${brand}`;
+      link.rel = "stylesheet";
+      link.href = url;
+      document.head.appendChild(link);
+    }
+  }, [accentColor, accentFg, brand]);
 
   const companySlug = companyName.toLowerCase().replace(/[^a-z0-9]/g, "-");
   const devopsParams = new URLSearchParams(window.location.search).toString();
