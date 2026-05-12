@@ -212,3 +212,77 @@ export interface CosAgentRequest {
   agent: CosAgentRequestAgent;
   message: string;
 }
+
+export interface CustomAction {
+  id: string;
+  label: string;
+  category: string;
+  scoreCategory: string;
+  scoreValue: number;
+  isRisky: boolean;
+  feedMessage: string;
+}
+
+export interface CustomAgent {
+  id: string;
+  name: string;
+  role: string;
+  systemPrompt: string;
+}
+
+export interface CustomScoreCategory {
+  key: string;
+  label: string;
+  max: number;
+}
+
+export interface GeneratedScenario {
+  title: string;
+  subtitle: string;
+  situation: string;
+  startTime: string;
+  role: string;
+  terminalContext: string;
+  feedEvents: FeedEvent[];
+  actions: CustomAction[];
+  agents: CustomAgent[];
+  scoreCategories: CustomScoreCategory[];
+}
+
+export type CustomSimulatorStateScore = { [key: string]: number };
+
+export interface CustomSimulatorState {
+  generating: boolean;
+  generationError: string | null;
+  scenario?: GeneratedScenario | null;
+  takenActions: string[];
+  feed: FeedEvent[];
+  score: CustomSimulatorStateScore;
+  totalScore: number;
+  incidentClosed: boolean;
+  time: string;
+  debrief: string | null;
+}
+
+export interface GenerateCustomScenarioRequest {
+  description: string;
+  company?: string;
+}
+
+export interface CustomActionRequest {
+  actionId: string;
+}
+
+export interface CustomActionResponse {
+  feedback: string;
+  state: CustomSimulatorState;
+}
+
+export interface CustomAgentRequest {
+  agentId: string;
+  message: string;
+}
+
+export interface CustomCommandResponse {
+  output: string;
+}

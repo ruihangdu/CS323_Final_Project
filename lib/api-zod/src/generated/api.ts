@@ -434,3 +434,319 @@ export const ResetCosSimulatorResponse = zod.object({
   totalScore: zod.number(),
   debrief: zod.string().nullable(),
 });
+
+/**
+ * Use AI to generate a full custom training scenario from a description
+ * @summary Generate a custom scenario
+ */
+export const GenerateCustomScenarioBody = zod.object({
+  description: zod.string(),
+  company: zod.string().optional(),
+});
+
+export const GenerateCustomScenarioResponse = zod.object({
+  generating: zod.boolean(),
+  generationError: zod.string().nullable(),
+  scenario: zod
+    .object({
+      title: zod.string(),
+      subtitle: zod.string(),
+      situation: zod.string(),
+      startTime: zod.string(),
+      role: zod.string(),
+      terminalContext: zod.string(),
+      feedEvents: zod.array(
+        zod.object({
+          id: zod.string(),
+          time: zod.string(),
+          source: zod.string(),
+          message: zod.string(),
+          type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+        }),
+      ),
+      actions: zod.array(
+        zod.object({
+          id: zod.string(),
+          label: zod.string(),
+          category: zod.string(),
+          scoreCategory: zod.string(),
+          scoreValue: zod.number(),
+          isRisky: zod.boolean(),
+          feedMessage: zod.string(),
+        }),
+      ),
+      agents: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          role: zod.string(),
+          systemPrompt: zod.string(),
+        }),
+      ),
+      scoreCategories: zod.array(
+        zod.object({
+          key: zod.string(),
+          label: zod.string(),
+          max: zod.number(),
+        }),
+      ),
+    })
+    .nullish(),
+  takenActions: zod.array(zod.string()),
+  feed: zod.array(
+    zod.object({
+      id: zod.string(),
+      time: zod.string(),
+      source: zod.string(),
+      message: zod.string(),
+      type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+    }),
+  ),
+  score: zod.record(zod.string(), zod.number()),
+  totalScore: zod.number(),
+  incidentClosed: zod.boolean(),
+  time: zod.string(),
+  debrief: zod.string().nullable(),
+});
+
+/**
+ * Returns the current custom simulator state (poll until generating=false)
+ * @summary Get custom simulator state
+ */
+export const GetCustomSimulatorStateResponse = zod.object({
+  generating: zod.boolean(),
+  generationError: zod.string().nullable(),
+  scenario: zod
+    .object({
+      title: zod.string(),
+      subtitle: zod.string(),
+      situation: zod.string(),
+      startTime: zod.string(),
+      role: zod.string(),
+      terminalContext: zod.string(),
+      feedEvents: zod.array(
+        zod.object({
+          id: zod.string(),
+          time: zod.string(),
+          source: zod.string(),
+          message: zod.string(),
+          type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+        }),
+      ),
+      actions: zod.array(
+        zod.object({
+          id: zod.string(),
+          label: zod.string(),
+          category: zod.string(),
+          scoreCategory: zod.string(),
+          scoreValue: zod.number(),
+          isRisky: zod.boolean(),
+          feedMessage: zod.string(),
+        }),
+      ),
+      agents: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          role: zod.string(),
+          systemPrompt: zod.string(),
+        }),
+      ),
+      scoreCategories: zod.array(
+        zod.object({
+          key: zod.string(),
+          label: zod.string(),
+          max: zod.number(),
+        }),
+      ),
+    })
+    .nullish(),
+  takenActions: zod.array(zod.string()),
+  feed: zod.array(
+    zod.object({
+      id: zod.string(),
+      time: zod.string(),
+      source: zod.string(),
+      message: zod.string(),
+      type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+    }),
+  ),
+  score: zod.record(zod.string(), zod.number()),
+  totalScore: zod.number(),
+  incidentClosed: zod.boolean(),
+  time: zod.string(),
+  debrief: zod.string().nullable(),
+});
+
+/**
+ * Execute an action in the custom scenario
+ * @summary Take a custom scenario action
+ */
+export const TakeCustomActionBody = zod.object({
+  actionId: zod.string(),
+});
+
+export const TakeCustomActionResponse = zod.object({
+  feedback: zod.string(),
+  state: zod.object({
+    generating: zod.boolean(),
+    generationError: zod.string().nullable(),
+    scenario: zod
+      .object({
+        title: zod.string(),
+        subtitle: zod.string(),
+        situation: zod.string(),
+        startTime: zod.string(),
+        role: zod.string(),
+        terminalContext: zod.string(),
+        feedEvents: zod.array(
+          zod.object({
+            id: zod.string(),
+            time: zod.string(),
+            source: zod.string(),
+            message: zod.string(),
+            type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+          }),
+        ),
+        actions: zod.array(
+          zod.object({
+            id: zod.string(),
+            label: zod.string(),
+            category: zod.string(),
+            scoreCategory: zod.string(),
+            scoreValue: zod.number(),
+            isRisky: zod.boolean(),
+            feedMessage: zod.string(),
+          }),
+        ),
+        agents: zod.array(
+          zod.object({
+            id: zod.string(),
+            name: zod.string(),
+            role: zod.string(),
+            systemPrompt: zod.string(),
+          }),
+        ),
+        scoreCategories: zod.array(
+          zod.object({
+            key: zod.string(),
+            label: zod.string(),
+            max: zod.number(),
+          }),
+        ),
+      })
+      .nullish(),
+    takenActions: zod.array(zod.string()),
+    feed: zod.array(
+      zod.object({
+        id: zod.string(),
+        time: zod.string(),
+        source: zod.string(),
+        message: zod.string(),
+        type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+      }),
+    ),
+    score: zod.record(zod.string(), zod.number()),
+    totalScore: zod.number(),
+    incidentClosed: zod.boolean(),
+    time: zod.string(),
+    debrief: zod.string().nullable(),
+  }),
+});
+
+/**
+ * Send a message to a generated AI advisor
+ * @summary Query a custom scenario AI advisor
+ */
+export const QueryCustomAgentBody = zod.object({
+  agentId: zod.string(),
+  message: zod.string(),
+});
+
+export const QueryCustomAgentResponse = zod.object({
+  agent: zod.string(),
+  response: zod.string(),
+  confidence: zod.string().nullable(),
+  toolsUsed: zod.array(zod.string()),
+});
+
+/**
+ * Execute a terminal command in the context of the custom scenario
+ * @summary Run a custom scenario terminal command
+ */
+export const RunCustomCommandBody = zod.object({
+  command: zod.string(),
+});
+
+export const RunCustomCommandResponse = zod.object({
+  output: zod.string(),
+});
+
+/**
+ * Reset the custom simulator state
+ * @summary Reset the custom simulator
+ */
+export const ResetCustomSimulatorResponse = zod.object({
+  generating: zod.boolean(),
+  generationError: zod.string().nullable(),
+  scenario: zod
+    .object({
+      title: zod.string(),
+      subtitle: zod.string(),
+      situation: zod.string(),
+      startTime: zod.string(),
+      role: zod.string(),
+      terminalContext: zod.string(),
+      feedEvents: zod.array(
+        zod.object({
+          id: zod.string(),
+          time: zod.string(),
+          source: zod.string(),
+          message: zod.string(),
+          type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+        }),
+      ),
+      actions: zod.array(
+        zod.object({
+          id: zod.string(),
+          label: zod.string(),
+          category: zod.string(),
+          scoreCategory: zod.string(),
+          scoreValue: zod.number(),
+          isRisky: zod.boolean(),
+          feedMessage: zod.string(),
+        }),
+      ),
+      agents: zod.array(
+        zod.object({
+          id: zod.string(),
+          name: zod.string(),
+          role: zod.string(),
+          systemPrompt: zod.string(),
+        }),
+      ),
+      scoreCategories: zod.array(
+        zod.object({
+          key: zod.string(),
+          label: zod.string(),
+          max: zod.number(),
+        }),
+      ),
+    })
+    .nullish(),
+  takenActions: zod.array(zod.string()),
+  feed: zod.array(
+    zod.object({
+      id: zod.string(),
+      time: zod.string(),
+      source: zod.string(),
+      message: zod.string(),
+      type: zod.enum(["info", "good", "warning", "bad", "critical"]),
+    }),
+  ),
+  score: zod.record(zod.string(), zod.number()),
+  totalScore: zod.number(),
+  incidentClosed: zod.boolean(),
+  time: zod.string(),
+  debrief: zod.string().nullable(),
+});

@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import SimulatorPage from "@/pages/SimulatorPage";
 import SetupPage from "@/pages/SetupPage";
+import CustomSimulatorPage from "@/pages/CustomSimulatorPage";
 
 const queryClient = new QueryClient();
 
@@ -13,6 +14,7 @@ function Router() {
     <Switch>
       <Route path="/" component={SetupPage} />
       <Route path="/sim" component={SimulatorPage} />
+      <Route path="/custom" component={CustomSimulatorPage} />
       <Route component={NotFound} />
     </Switch>
   );

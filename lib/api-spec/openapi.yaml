@@ -14,6 +14,8 @@ tags:
     description: Incident simulator operations
   - name: cos-simulator
     description: Creator HQ Chief of Staff incident simulator operations
+  - name: custom-simulator
+    description: AI-generated custom scenario simulator operations
 paths:
   /healthz:
     get:
@@ -204,6 +206,114 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CosSimulatorState"
+
+  /custom-simulator/generate:
+    post:
+      operationId: generateCustomScenario
+      tags: [custom-simulator]
+      summary: Generate a custom scenario
+      description: Use AI to generate a full custom training scenario from a description
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateCustomScenarioRequest"
+      responses:
+        "200":
+          description: Custom simulator state (generating=true while AI works)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomSimulatorState"
+
+  /custom-simulator/state:
+    get:
+      operationId: getCustomSimulatorState
+      tags: [custom-simulator]
+      summary: Get custom simulator state
+      description: Returns the current custom simulator state (poll until generating=false)
+      responses:
+        "200":
+          description: Current custom simulator state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomSimulatorState"
+
+  /custom-simulator/action:
+    post:
+      operationId: takeCustomAction
+      tags: [custom-simulator]
+      summary: Take a custom scenario action
+      description: Execute an action in the custom scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomActionRequest"
+      responses:
+        "200":
+          description: Action result and updated state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomActionResponse"
+
+  /custom-simulator/agent:
+    post:
+      operationId: queryCustomAgent
+      tags: [custom-simulator]
+      summary: Query a custom scenario AI advisor
+      description: Send a message to a generated AI advisor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomAgentRequest"
+      responses:
+        "200":
+          description: Advisor response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentResponse"
+
+  /custom-simulator/command:
+    post:
+      operationId: runCustomCommand
+      tags: [custom-simulator]
+      summary: Run a custom scenario terminal command
+      description: Execute a terminal command in the context of the custom scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandRequest"
+      responses:
+        "200":
+          description: Command output
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomCommandResponse"
+
+  /custom-simulator/reset:
+    post:
+      operationId: resetCustomSimulator
+      tags: [custom-simulator]
+      summary: Reset the custom simulator
+      description: Reset the custom simulator state
+      responses:
+        "200":
+          description: Reset custom simulator state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomSimulatorState"
 
 components:
   schemas:
@@ -564,3 +674,195 @@ components:
       required:
         - agent
         - message
+
+    CustomAction:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        category:
+          type: string
+        scoreCategory:
+          type: string
+        scoreValue:
+          type: integer
+        isRisky:
+          type: boolean
+        feedMessage:
+          type: string
+      required:
+        - id
+        - label
+        - category
+        - scoreCategory
+        - scoreValue
+        - isRisky
+        - feedMessage
+
+    CustomAgent:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+        systemPrompt:
+          type: string
+      required:
+        - id
+        - name
+        - role
+        - systemPrompt
+
+    CustomScoreCategory:
+      type: object
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        max:
+          type: integer
+      required:
+        - key
+        - label
+        - max
+
+    GeneratedScenario:
+      type: object
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
+        situation:
+          type: string
+        startTime:
+          type: string
+        role:
+          type: string
+        terminalContext:
+          type: string
+        feedEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedEvent"
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomAction"
+        agents:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomAgent"
+        scoreCategories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomScoreCategory"
+      required:
+        - title
+        - subtitle
+        - situation
+        - startTime
+        - role
+        - terminalContext
+        - feedEvents
+        - actions
+        - agents
+        - scoreCategories
+
+    CustomSimulatorState:
+      type: object
+      properties:
+        generating:
+          type: boolean
+        generationError:
+          type: string
+          nullable: true
+        scenario:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/GeneratedScenario"
+        takenActions:
+          type: array
+          items:
+            type: string
+        feed:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedEvent"
+        score:
+          type: object
+          additionalProperties:
+            type: integer
+        totalScore:
+          type: integer
+        incidentClosed:
+          type: boolean
+        time:
+          type: string
+        debrief:
+          type: string
+          nullable: true
+      required:
+        - generating
+        - generationError
+        - takenActions
+        - feed
+        - score
+        - totalScore
+        - incidentClosed
+        - time
+        - debrief
+
+    GenerateCustomScenarioRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        company:
+          type: string
+      required:
+        - description
+
+    CustomActionRequest:
+      type: object
+      properties:
+        actionId:
+          type: string
+      required:
+        - actionId
+
+    CustomActionResponse:
+      type: object
+      properties:
+        feedback:
+          type: string
+        state:
+          $ref: "#/components/schemas/CustomSimulatorState"
+      required:
+        - feedback
+        - state
+
+    CustomAgentRequest:
+      type: object
+      properties:
+        agentId:
+          type: string
+        message:
+          type: string
+      required:
+        - agentId
+        - message
+
+    CustomCommandResponse:
+      type: object
+      properties:
+        output:
+          type: string
+      required:
+        - output
