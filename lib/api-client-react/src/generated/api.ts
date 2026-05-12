@@ -33,10 +33,15 @@ import type {
   CustomAgentRequest,
   CustomCommandResponse,
   CustomSimulatorState,
+  DiagnoseBody,
+  DiagnoseResponse,
   DraftStatementBody,
   GenerateCustomScenarioRequest,
   HealthStatus,
   NegotiateDealBody,
+  RecoverBody,
+  RecoverResponse,
+  SelectScenarioBody,
   SimulatorState,
 } from "./api.schemas";
 
@@ -542,6 +547,264 @@ export const useResetSimulator = <
   TContext
 > => {
   return useMutation(getResetSimulatorMutationOptions(options));
+};
+
+/**
+ * @summary Select and load an incident scenario
+ */
+export const getSelectScenarioUrl = () => {
+  return `/api/simulator/select-scenario`;
+};
+
+export const selectScenario = async (
+  selectScenarioBody: SelectScenarioBody,
+  options?: RequestInit,
+): Promise<SimulatorState> => {
+  return customFetch<SimulatorState>(getSelectScenarioUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(selectScenarioBody),
+  });
+};
+
+export const getSelectScenarioMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof selectScenario>>,
+    TError,
+    { data: BodyType<SelectScenarioBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof selectScenario>>,
+  TError,
+  { data: BodyType<SelectScenarioBody> },
+  TContext
+> => {
+  const mutationKey = ["selectScenario"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof selectScenario>>,
+    { data: BodyType<SelectScenarioBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return selectScenario(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SelectScenarioMutationResult = NonNullable<
+  Awaited<ReturnType<typeof selectScenario>>
+>;
+export type SelectScenarioMutationBody = BodyType<SelectScenarioBody>;
+export type SelectScenarioMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Select and load an incident scenario
+ */
+export const useSelectScenario = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof selectScenario>>,
+    TError,
+    { data: BodyType<SelectScenarioBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof selectScenario>>,
+  TError,
+  { data: BodyType<SelectScenarioBody> },
+  TContext
+> => {
+  return useMutation(getSelectScenarioMutationOptions(options));
+};
+
+/**
+ * @summary Submit root cause hypothesis
+ */
+export const getSubmitDiagnosisUrl = () => {
+  return `/api/simulator/diagnose`;
+};
+
+export const submitDiagnosis = async (
+  diagnoseBody: DiagnoseBody,
+  options?: RequestInit,
+): Promise<DiagnoseResponse> => {
+  return customFetch<DiagnoseResponse>(getSubmitDiagnosisUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(diagnoseBody),
+  });
+};
+
+export const getSubmitDiagnosisMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitDiagnosis>>,
+    TError,
+    { data: BodyType<DiagnoseBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof submitDiagnosis>>,
+  TError,
+  { data: BodyType<DiagnoseBody> },
+  TContext
+> => {
+  const mutationKey = ["submitDiagnosis"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof submitDiagnosis>>,
+    { data: BodyType<DiagnoseBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return submitDiagnosis(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SubmitDiagnosisMutationResult = NonNullable<
+  Awaited<ReturnType<typeof submitDiagnosis>>
+>;
+export type SubmitDiagnosisMutationBody = BodyType<DiagnoseBody>;
+export type SubmitDiagnosisMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Submit root cause hypothesis
+ */
+export const useSubmitDiagnosis = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof submitDiagnosis>>,
+    TError,
+    { data: BodyType<DiagnoseBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof submitDiagnosis>>,
+  TError,
+  { data: BodyType<DiagnoseBody> },
+  TContext
+> => {
+  return useMutation(getSubmitDiagnosisMutationOptions(options));
+};
+
+/**
+ * @summary Execute a recovery strategy
+ */
+export const getExecuteRecoveryUrl = () => {
+  return `/api/simulator/recover`;
+};
+
+export const executeRecovery = async (
+  recoverBody: RecoverBody,
+  options?: RequestInit,
+): Promise<RecoverResponse> => {
+  return customFetch<RecoverResponse>(getExecuteRecoveryUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(recoverBody),
+  });
+};
+
+export const getExecuteRecoveryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeRecovery>>,
+    TError,
+    { data: BodyType<RecoverBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof executeRecovery>>,
+  TError,
+  { data: BodyType<RecoverBody> },
+  TContext
+> => {
+  const mutationKey = ["executeRecovery"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof executeRecovery>>,
+    { data: BodyType<RecoverBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return executeRecovery(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExecuteRecoveryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof executeRecovery>>
+>;
+export type ExecuteRecoveryMutationBody = BodyType<RecoverBody>;
+export type ExecuteRecoveryMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Execute a recovery strategy
+ */
+export const useExecuteRecovery = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof executeRecovery>>,
+    TError,
+    { data: BodyType<RecoverBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof executeRecovery>>,
+  TError,
+  { data: BodyType<RecoverBody> },
+  TContext
+> => {
+  return useMutation(getExecuteRecoveryMutationOptions(options));
 };
 
 /**

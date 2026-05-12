@@ -38,6 +38,12 @@ export interface ScoreBreakdown {
 
 export interface SimulatorState {
   time: string;
+  scenarioId: string;
+  scenarioSelected: boolean;
+  diagnosisSubmitted: boolean;
+  diagnosisScore: number;
+  recoveryCompleted: boolean;
+  recoveryChoice: string | null;
   sevDeclared: boolean;
   deploysFrozen: boolean;
   workersStopped: boolean;
@@ -50,6 +56,12 @@ export interface SimulatorState {
   verifiedBackupRestored: boolean;
   replica1Promoted: boolean;
   replica2Inspected: boolean;
+  deployLogChecked: boolean;
+  breakingChangeFound: boolean;
+  memoryLeakIdentified: boolean;
+  processorsScaledDown: boolean;
+  configMapChecked: boolean;
+  regionIsolated: boolean;
   statusPublished: boolean;
   incidentClosed: boolean;
   commandsRun: string[];
@@ -68,6 +80,56 @@ export interface CommandResponse {
   state: SimulatorState;
 }
 
+export type SelectScenarioBodyScenarioId =
+  (typeof SelectScenarioBodyScenarioId)[keyof typeof SelectScenarioBodyScenarioId];
+
+export const SelectScenarioBodyScenarioId = {
+  maint_bot: "maint_bot",
+  bad_deploy: "bad_deploy",
+  memory_siege: "memory_siege",
+  config_catastrophe: "config_catastrophe",
+} as const;
+
+export interface SelectScenarioBody {
+  scenarioId: SelectScenarioBodyScenarioId;
+}
+
+export interface DiagnoseBody {
+  rootCauseCategory: string;
+  specificTrigger: string;
+  blastRadius: string[];
+}
+
+export interface DiagnoseResponse {
+  categoryCorrect: boolean;
+  triggerCorrect: boolean;
+  blastRadiusScore: number;
+  totalScore: number;
+  feedback: string;
+  state: SimulatorState;
+}
+
+export interface RecoverBody {
+  strategy: string;
+}
+
+export type RecoverResponseSeverity =
+  (typeof RecoverResponseSeverity)[keyof typeof RecoverResponseSeverity];
+
+export const RecoverResponseSeverity = {
+  good: "good",
+  warning: "warning",
+  bad: "bad",
+  info: "info",
+} as const;
+
+export interface RecoverResponse {
+  message: string;
+  severity: RecoverResponseSeverity;
+  points: number;
+  state: SimulatorState;
+}
+
 export type ActionRequestAction =
   (typeof ActionRequestAction)[keyof typeof ActionRequestAction];
 
@@ -82,6 +144,12 @@ export const ActionRequestAction = {
   RESTORE_VERIFIED_BACKUP: "RESTORE_VERIFIED_BACKUP",
   PROMOTE_REPLICA_1: "PROMOTE_REPLICA_1",
   INSPECT_REPLICA_2: "INSPECT_REPLICA_2",
+  CHECK_DEPLOY_LOG: "CHECK_DEPLOY_LOG",
+  IDENTIFY_BREAKING_CHANGE: "IDENTIFY_BREAKING_CHANGE",
+  IDENTIFY_MEMORY_LEAK: "IDENTIFY_MEMORY_LEAK",
+  SCALE_DOWN_PROCESSORS: "SCALE_DOWN_PROCESSORS",
+  CHECK_CONFIGMAP: "CHECK_CONFIGMAP",
+  ISOLATE_EU_REGION: "ISOLATE_EU_REGION",
   PUBLISH_STATUS_UPDATE: "PUBLISH_STATUS_UPDATE",
   CLOSE_INCIDENT: "CLOSE_INCIDENT",
 } as const;

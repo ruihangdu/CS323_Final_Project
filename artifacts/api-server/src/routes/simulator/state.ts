@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { SCENARIOS } from "./scenarios";
 
 export type FeedEventType = "info" | "good" | "warning" | "bad" | "critical";
 
@@ -21,6 +22,12 @@ export interface ScoreBreakdown {
 
 export interface SimulatorState {
   time: string;
+  scenarioId: string;
+  scenarioSelected: boolean;
+  diagnosisSubmitted: boolean;
+  diagnosisScore: number;
+  recoveryCompleted: boolean;
+  recoveryChoice: string | null;
   sevDeclared: boolean;
   deploysFrozen: boolean;
   workersStopped: boolean;
@@ -33,6 +40,12 @@ export interface SimulatorState {
   verifiedBackupRestored: boolean;
   replica1Promoted: boolean;
   replica2Inspected: boolean;
+  deployLogChecked: boolean;
+  breakingChangeFound: boolean;
+  memoryLeakIdentified: boolean;
+  processorsScaledDown: boolean;
+  configMapChecked: boolean;
+  regionIsolated: boolean;
   statusPublished: boolean;
   incidentClosed: boolean;
   commandsRun: string[];
@@ -51,9 +64,16 @@ export function makeEvent(
   return { id: uuidv4(), time, source, message, type };
 }
 
-export function createInitialState(): SimulatorState {
+function blankState(scenarioId = "maint_bot", scenarioSelected = false): SimulatorState {
+  const scenario = SCENARIOS[scenarioId];
   return {
-    time: "02:14",
+    time: scenario?.initialTime ?? "02:14",
+    scenarioId,
+    scenarioSelected,
+    diagnosisSubmitted: false,
+    diagnosisScore: 0,
+    recoveryCompleted: false,
+    recoveryChoice: null,
     sevDeclared: false,
     deploysFrozen: false,
     workersStopped: false,
@@ -66,6 +86,12 @@ export function createInitialState(): SimulatorState {
     verifiedBackupRestored: false,
     replica1Promoted: false,
     replica2Inspected: false,
+    deployLogChecked: false,
+    breakingChangeFound: false,
+    memoryLeakIdentified: false,
+    processorsScaledDown: false,
+    configMapChecked: false,
+    regionIsolated: false,
     statusPublished: false,
     incidentClosed: false,
     commandsRun: [],
@@ -77,16 +103,21 @@ export function createInitialState(): SimulatorState {
       communication: 0,
       prevention: 0,
     },
-    feed: [
+    feed: scenario ? [...scenario.initialFeed] : [
       makeEvent("02:14", "PagerDuty", "API 500 rate > 35%", "critical"),
       makeEvent("02:15", "Support", "Customers report empty dashboards", "bad"),
-      makeEvent("02:16", "Monitoring", "Background jobs failing", "warning"),
-      makeEvent("02:17", "Slack #support", 'Acme Corp says "all tasks disappeared"', "bad"),
-      makeEvent("02:19", "Monitoring", "Primary DB disk usage dropped from 1.8TB to 370GB", "critical"),
     ],
     totalScore: 0,
     debrief: null,
   };
+}
+
+export function createInitialState(): SimulatorState {
+  return blankState("maint_bot", false);
+}
+
+export function createScenarioState(scenarioId: string): SimulatorState {
+  return blankState(scenarioId, true);
 }
 
 export function computeTotalScore(score: ScoreBreakdown): number {
@@ -109,6 +140,11 @@ export function getState(): SimulatorState {
 
 export function resetState(): SimulatorState {
   simulatorState = createInitialState();
+  return simulatorState;
+}
+
+export function loadScenario(scenarioId: string): SimulatorState {
+  simulatorState = createScenarioState(scenarioId);
   return simulatorState;
 }
 

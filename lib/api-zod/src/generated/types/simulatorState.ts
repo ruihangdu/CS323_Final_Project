@@ -10,6 +10,12 @@ import type { ScoreBreakdown } from "./scoreBreakdown";
 
 export interface SimulatorState {
   time: string;
+  scenarioId: string;
+  scenarioSelected: boolean;
+  diagnosisSubmitted: boolean;
+  diagnosisScore: number;
+  recoveryCompleted: boolean;
+  recoveryChoice: string | null;
   sevDeclared: boolean;
   deploysFrozen: boolean;
   workersStopped: boolean;
@@ -22,6 +28,12 @@ export interface SimulatorState {
   verifiedBackupRestored: boolean;
   replica1Promoted: boolean;
   replica2Inspected: boolean;
+  deployLogChecked: boolean;
+  breakingChangeFound: boolean;
+  memoryLeakIdentified: boolean;
+  processorsScaledDown: boolean;
+  configMapChecked: boolean;
+  regionIsolated: boolean;
   statusPublished: boolean;
   incidentClosed: boolean;
   commandsRun: string[];

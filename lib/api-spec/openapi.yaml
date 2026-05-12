@@ -119,6 +119,63 @@ paths:
               schema:
                 $ref: "#/components/schemas/SimulatorState"
 
+  /simulator/select-scenario:
+    post:
+      operationId: selectScenario
+      tags: [simulator]
+      summary: Select and load an incident scenario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelectScenarioBody"
+      responses:
+        "200":
+          description: Scenario loaded, state reset to scenario initial conditions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulatorState"
+
+  /simulator/diagnose:
+    post:
+      operationId: submitDiagnosis
+      tags: [simulator]
+      summary: Submit root cause hypothesis
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DiagnoseBody"
+      responses:
+        "200":
+          description: Diagnosis result with scoring feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiagnoseResponse"
+
+  /simulator/recover:
+    post:
+      operationId: executeRecovery
+      tags: [simulator]
+      summary: Execute a recovery strategy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoverBody"
+      responses:
+        "200":
+          description: Recovery result with scoring feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecoverResponse"
+
   /cos-simulator/state:
     get:
       operationId: getCosSimulatorState
@@ -414,6 +471,19 @@ components:
       properties:
         time:
           type: string
+        scenarioId:
+          type: string
+        scenarioSelected:
+          type: boolean
+        diagnosisSubmitted:
+          type: boolean
+        diagnosisScore:
+          type: integer
+        recoveryCompleted:
+          type: boolean
+        recoveryChoice:
+          type: string
+          nullable: true
         sevDeclared:
           type: boolean
         deploysFrozen:
@@ -438,6 +508,18 @@ components:
           type: boolean
         replica2Inspected:
           type: boolean
+        deployLogChecked:
+          type: boolean
+        breakingChangeFound:
+          type: boolean
+        memoryLeakIdentified:
+          type: boolean
+        processorsScaledDown:
+          type: boolean
+        configMapChecked:
+          type: boolean
+        regionIsolated:
+          type: boolean
         statusPublished:
           type: boolean
         incidentClosed:
@@ -459,6 +541,12 @@ components:
           nullable: true
       required:
         - time
+        - scenarioId
+        - scenarioSelected
+        - diagnosisSubmitted
+        - diagnosisScore
+        - recoveryCompleted
+        - recoveryChoice
         - sevDeclared
         - deploysFrozen
         - workersStopped
@@ -471,6 +559,12 @@ components:
         - verifiedBackupRestored
         - replica1Promoted
         - replica2Inspected
+        - deployLogChecked
+        - breakingChangeFound
+        - memoryLeakIdentified
+        - processorsScaledDown
+        - configMapChecked
+        - regionIsolated
         - statusPublished
         - incidentClosed
         - commandsRun
@@ -498,6 +592,65 @@ components:
         - output
         - state
 
+    SelectScenarioBody:
+      type: object
+      required: [scenarioId]
+      properties:
+        scenarioId:
+          type: string
+          enum: [maint_bot, bad_deploy, memory_siege, config_catastrophe]
+
+    DiagnoseBody:
+      type: object
+      required: [rootCauseCategory, specificTrigger, blastRadius]
+      properties:
+        rootCauseCategory:
+          type: string
+        specificTrigger:
+          type: string
+        blastRadius:
+          type: array
+          items:
+            type: string
+
+    DiagnoseResponse:
+      type: object
+      required: [categoryCorrect, triggerCorrect, blastRadiusScore, totalScore, feedback, state]
+      properties:
+        categoryCorrect:
+          type: boolean
+        triggerCorrect:
+          type: boolean
+        blastRadiusScore:
+          type: integer
+        totalScore:
+          type: integer
+        feedback:
+          type: string
+        state:
+          $ref: "#/components/schemas/SimulatorState"
+
+    RecoverBody:
+      type: object
+      required: [strategy]
+      properties:
+        strategy:
+          type: string
+
+    RecoverResponse:
+      type: object
+      required: [message, severity, points, state]
+      properties:
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [good, warning, bad, info]
+        points:
+          type: integer
+        state:
+          $ref: "#/components/schemas/SimulatorState"
+
     ActionRequest:
       type: object
       properties:
@@ -514,6 +667,12 @@ components:
             - RESTORE_VERIFIED_BACKUP
             - PROMOTE_REPLICA_1
             - INSPECT_REPLICA_2
+            - CHECK_DEPLOY_LOG
+            - IDENTIFY_BREAKING_CHANGE
+            - IDENTIFY_MEMORY_LEAK
+            - SCALE_DOWN_PROCESSORS
+            - CHECK_CONFIGMAP
+            - ISOLATE_EU_REGION
             - PUBLISH_STATUS_UPDATE
             - CLOSE_INCIDENT
       required:
