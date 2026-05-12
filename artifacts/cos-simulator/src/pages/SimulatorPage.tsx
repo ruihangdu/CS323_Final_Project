@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Users,
   Heart,
+  Activity,
 } from "lucide-react";
 import {
   useGetCosSimulatorState,
@@ -109,6 +110,14 @@ export default function SimulatorPage() {
               CRISIS ACTIVE
             </Badge>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { window.location.href = "/"; }}
+            className="font-mono text-xs border-primary/50 text-primary hover:bg-primary/10"
+          >
+            <Activity className="w-3 h-3 mr-2" /> SWE On-Call Role
+          </Button>
           <Button
             variant="outline"
             size="sm"

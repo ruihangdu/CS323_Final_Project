@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Terminal, CheckCircle2, RotateCcw, Send, Activity, ShieldAlert, Zap, Clock, Shield } from "lucide-react";
+import { AlertCircle, Terminal, CheckCircle2, RotateCcw, Send, Activity, ShieldAlert, Zap, Clock, Shield, TrendingUp } from "lucide-react";
 import {
   useGetSimulatorState,
   useRunCommand,
@@ -69,6 +69,14 @@ export default function SimulatorPage() {
               INCIDENT ACTIVE
             </Badge>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { window.location.href = "/cos-simulator/"; }}
+            className="font-mono text-xs border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+          >
+            <TrendingUp className="w-3 h-3 mr-2" /> Chief of Staff Role
+          </Button>
           <Button variant="outline" size="sm" onClick={handleReset} data-testid="btn-reset" className="font-mono text-xs">
             <RotateCcw className="w-3 h-3 mr-2" /> RESET
           </Button>
