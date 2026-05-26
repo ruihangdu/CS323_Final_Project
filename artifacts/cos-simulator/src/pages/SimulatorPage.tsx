@@ -2,13 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
-  Terminal,
+  Search,
+  Brain,
+  BarChart2,
   CheckCircle2,
   RotateCcw,
   Send,
-  Zap,
   Clock,
-  Shield,
   TrendingUp,
   Users,
   Heart,
@@ -112,7 +112,7 @@ export default function SimulatorPage() {
 
   if (isLoading || !state) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-background text-primary font-mono">
+      <div className="h-screen w-full flex items-center justify-center bg-background text-primary font-sans">
         INITIALIZING CREATOR HQ...
       </div>
     );
@@ -183,10 +183,10 @@ export default function SimulatorPage() {
 
       {/* Main Layout */}
       <div className="flex-1 grid grid-cols-12 gap-4 p-4 min-h-0">
-        {/* Left Column: Feed & Terminal */}
+        {/* Left Column: Feed & Research */}
         <div className="col-span-4 flex flex-col gap-4 min-h-0">
           <SituationFeed feed={state.feed} brand={brand} />
-          <TerminalConsole key={sessionKey} companySlug={companySlug} />
+          <ResearchConsole key={sessionKey} companySlug={companySlug} />
         </div>
 
         {/* Center Column: AI Advisors */}
@@ -235,7 +235,7 @@ function SituationFeed({ feed, brand }: { feed: FeedEvent[]; brand: string }) {
   return (
     <Card className="flex-1 flex flex-col min-h-0 border-border bg-card">
       <CardHeader className="py-3 px-4 border-b border-border shrink-0">
-        <CardTitle className="text-sm font-mono flex items-center text-primary">
+        <CardTitle className="text-sm flex items-center text-primary">
           <Clock className="w-4 h-4 mr-2" /> {brand === "editorial" ? "Messages" : "SITUATION FEED"}
         </CardTitle>
       </CardHeader>
@@ -290,15 +290,14 @@ function SituationFeed({ feed, brand }: { feed: FeedEvent[]; brand: string }) {
   );
 }
 
-type TerminalEntry = { command: string; output: string };
+type ResearchEntry = { query: string; result: string };
 
-function TerminalConsole({ companySlug }: { companySlug: string }) {
+function ResearchConsole({ companySlug: _companySlug }: { companySlug: string }) {
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<TerminalEntry[]>([]);
+  const [history, setHistory] = useState<ResearchEntry[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const runCommand = useRunCosCommand();
   const queryClient = useQueryClient();
-  const prompt = `${companySlug}-hq`;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -308,16 +307,16 @@ function TerminalConsole({ companySlug }: { companySlug: string }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cmd = input.trim();
-    if (!cmd || runCommand.isPending) return;
+    const query = input.trim();
+    if (!query || runCommand.isPending) return;
     setInput("");
     runCommand.mutate(
-      { data: { command: cmd } },
+      { data: { command: query } },
       {
         onSuccess: (data) => {
           setHistory((prev) => [
             ...prev,
-            { command: cmd, output: data.output },
+            { query, result: data.output },
           ]);
           queryClient.invalidateQueries({
             queryKey: getGetCosSimulatorStateQueryKey(),
@@ -328,46 +327,50 @@ function TerminalConsole({ companySlug }: { companySlug: string }) {
   };
 
   return (
-    <Card className="h-1/3 flex flex-col min-h-[250px] border-border bg-black">
-      <CardHeader className="py-2 px-4 border-b border-border shrink-0 bg-card">
-        <CardTitle className="text-sm font-mono flex items-center text-primary">
-          <Terminal className="w-4 h-4 mr-2" /> INVESTIGATION TERMINAL
+    <Card className="h-1/3 flex flex-col min-h-[250px] border-border bg-card">
+      <CardHeader className="py-2 px-4 border-b border-border shrink-0">
+        <CardTitle className="text-sm flex items-center text-primary">
+          <Search className="w-4 h-4 mr-2" /> RESEARCH
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 p-3 flex flex-col font-mono text-xs overflow-hidden">
-        <div className="flex-1 overflow-y-auto mb-2" ref={scrollRef}>
+      <CardContent className="flex-1 p-3 flex flex-col text-sm overflow-hidden">
+        <div className="flex-1 overflow-y-auto mb-2 space-y-3" ref={scrollRef}>
           {history.length === 0 && (
-            <div className="text-muted-foreground text-xs py-2">
-              Type 'help' for available commands
+            <div className="text-muted-foreground text-sm py-2">
+              Search clip archives, media metrics, contracts, and more.
             </div>
           )}
           {history.map((entry, i) => (
-            <div key={i} className="mb-2">
-              <div className="text-primary">{prompt} $ {entry.command}</div>
-              {entry.output && (
-                <div className="text-foreground whitespace-pre-wrap mt-0.5 pl-2 border-l border-border">
-                  {entry.output}
+            <div key={i} className="space-y-1">
+              <div className="flex items-start gap-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary/70 shrink-0 mt-0.5">Query</span>
+                <span className="text-sm text-foreground">{entry.query}</span>
+              </div>
+              {entry.result && (
+                <div className="flex items-start gap-2 pl-1 border-l-2 border-primary/20 ml-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0 mt-0.5">Result</span>
+                  <span className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{entry.result}</span>
                 </div>
               )}
             </div>
           ))}
           {runCommand.isPending && (
-            <div className="text-muted-foreground animate-pulse">
-              Running...
+            <div className="text-muted-foreground text-sm animate-pulse">
+              Searching…
             </div>
           )}
         </div>
         <form
           onSubmit={handleSubmit}
-          className="flex items-center shrink-0"
+          className="flex items-center gap-2 shrink-0 border-t border-border pt-2"
         >
-          <span className="text-primary mr-2">{prompt} $</span>
+          <Search className="w-4 h-4 text-muted-foreground shrink-0" />
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
-            placeholder="Type a command..."
+            className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground text-sm"
+            placeholder="Search archives, media metrics, contracts…"
             autoComplete="off"
             spellCheck="false"
             data-testid="input-terminal"
@@ -431,8 +434,8 @@ function AIAdvisorPanel() {
   return (
     <Card className="flex-1 flex flex-col min-h-0 border-border bg-card">
       <CardHeader className="py-2 px-4 border-b border-border shrink-0">
-        <CardTitle className="text-sm font-mono flex items-center text-primary">
-          <Zap className="w-4 h-4 mr-2" /> AI ADVISORS
+        <CardTitle className="text-sm flex items-center text-primary">
+          <Brain className="w-4 h-4 mr-2" /> AI ADVISORS
         </CardTitle>
       </CardHeader>
       <Tabs
@@ -446,7 +449,7 @@ function AIAdvisorPanel() {
               <TabsTrigger
                 key={agent}
                 value={agent}
-                className="text-[10px] sm:text-xs py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-mono rounded-sm"
+                className="text-[10px] sm:text-xs py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm"
                 data-testid={`tab-agent-${agent.replace(/\s+/g, "-")}`}
               >
                 {agent.split(" ")[0]}
@@ -460,7 +463,7 @@ function AIAdvisorPanel() {
           ref={scrollRef}
         >
           {history.length === 0 && (
-            <div className="text-center text-muted-foreground text-sm font-mono py-8">
+            <div className="text-center text-muted-foreground text-sm py-8">
               Select an advisor and ask for crisis guidance.
             </div>
           )}
@@ -493,7 +496,7 @@ function AIAdvisorPanel() {
           ))}
           {queryAgent.isPending && (
             <div className="flex items-start">
-              <div className="bg-secondary rounded-md px-3 py-2 text-sm text-muted-foreground animate-pulse font-mono">
+              <div className="bg-secondary rounded-md px-3 py-2 text-sm text-muted-foreground animate-pulse">
                 Thinking...
               </div>
             </div>
@@ -506,7 +509,7 @@ function AIAdvisorPanel() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={`Ask ${activeTab}...`}
-              className="bg-card font-mono text-sm"
+              className="bg-card text-sm"
               disabled={queryAgent.isPending}
               data-testid="input-agent-chat"
             />
@@ -865,7 +868,7 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
   }) => (
     <Button
       variant={isTaken ? "secondary" : variant}
-      className={`w-full justify-start font-mono text-xs ${isTaken ? "opacity-50 cursor-not-allowed" : ""} ${urgent && !isTaken ? "ring-1 ring-amber-500" : ""}`}
+      className={`w-full justify-start text-xs ${isTaken ? "opacity-50 cursor-not-allowed" : ""} ${urgent && !isTaken ? "ring-1 ring-amber-500" : ""}`}
       onClick={() => handleAction(id)}
       disabled={isTaken || takeAction.isPending || state.incidentClosed}
       data-testid={`btn-action-${id}`}
@@ -896,13 +899,13 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
 
       <Card className="flex-1 flex flex-col min-h-0 border-border bg-card">
         <CardHeader className="py-3 px-4 border-b border-border shrink-0">
-          <CardTitle className="text-sm font-mono flex items-center text-primary">
+          <CardTitle className="text-sm flex items-center text-primary">
             <AlertCircle className="w-4 h-4 mr-2" /> DECISIONS & ACTIONS
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 p-4 overflow-y-auto space-y-5">
           <div className="space-y-2">
-            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
+            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
               Containment
             </h3>
             <div className="grid grid-cols-2 gap-2">
@@ -923,8 +926,8 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
-              Investigation
+            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
+              Fact-Finding
             </h3>
             <div className="grid grid-cols-2 gap-2">
               <ActionBtn
@@ -943,7 +946,7 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
+            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
               Response
             </h3>
             <div className="flex flex-col gap-2">
@@ -955,7 +958,7 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
               />
               <Button
                 variant={state.statementDrafted ? "secondary" : "default"}
-                className={`w-full justify-start font-mono text-xs ${state.statementDrafted ? "opacity-50 cursor-not-allowed" : "ring-1 ring-primary/40"}`}
+                className={`w-full justify-start text-xs ${state.statementDrafted ? "opacity-50 cursor-not-allowed" : "ring-1 ring-primary/40"}`}
                 disabled={state.statementIssued || state.incidentClosed}
                 onClick={() => setDraftOpen(true)}
                 data-testid="btn-action-DRAFT_STATEMENT"
@@ -971,7 +974,7 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
+            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">
               Recovery
             </h3>
             <div className="grid grid-cols-2 gap-2">
@@ -996,7 +999,7 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
               />
               <Button
                 variant={state.dealNegotiated ? "secondary" : "outline"}
-                className={`w-full justify-start font-mono text-xs ${state.dealNegotiated ? "opacity-50 cursor-not-allowed" : ""} ${state.megaCorpReachedOut && !state.dealNegotiated ? "ring-1 ring-amber-500" : ""}`}
+                className={`w-full justify-start text-xs ${state.dealNegotiated ? "opacity-50 cursor-not-allowed" : ""} ${state.megaCorpReachedOut && !state.dealNegotiated ? "ring-1 ring-amber-500" : ""}`}
                 disabled={!state.megaCorpReachedOut || state.dealNegotiated || state.incidentClosed}
                 onClick={() => setNegotiateOpen(true)}
                 data-testid="btn-action-NEGOTIATE_DEAL"
@@ -1010,7 +1013,7 @@ function ActionPanel({ state }: { state: CosSimulatorState }) {
               </Button>
               <ActionBtn
                 id={CosActionRequestAction.CLOSE_INCIDENT}
-                label="Close Incident"
+                label="Close Crisis"
                 isTaken={state.incidentClosed}
                 variant="default"
               />
@@ -1041,7 +1044,7 @@ function ScorePanel({
     icon?: React.ComponentType<{ className?: string }>;
   }) => (
     <div className="flex flex-col gap-1">
-      <div className="flex justify-between text-xs font-mono">
+      <div className="flex justify-between text-xs">
         <span className="text-muted-foreground flex items-center gap-1">
           {Icon && <Icon className="w-3 h-3" />}
           {label}
@@ -1057,10 +1060,10 @@ function ScorePanel({
   return (
     <Card className="h-1/3 min-h-[220px] flex flex-col border-border bg-card">
       <CardHeader className="py-2 px-4 border-b border-border shrink-0 flex flex-row items-center justify-between">
-        <CardTitle className="text-sm font-mono flex items-center text-primary">
-          <Shield className="w-4 h-4 mr-2" /> PERFORMANCE
+        <CardTitle className="text-sm flex items-center text-primary">
+          <BarChart2 className="w-4 h-4 mr-2" /> PERFORMANCE
         </CardTitle>
-        <div className="font-mono text-xl font-bold text-primary">
+        <div className="text-xl font-bold text-primary">
           {totalScore}
           <span className="text-sm text-muted-foreground">/100</span>
         </div>
