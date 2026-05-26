@@ -66,6 +66,10 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    proxy: {
+      "/api": `http://localhost:${process.env.API_PORT ?? 3000}`,
+      "/cos-simulator": `http://localhost:${process.env.COS_PORT ?? 5174}`,
+    },
   },
   preview: {
     port,
