@@ -16,7 +16,6 @@ const STEPS = [
   { id: "context", label: "the work" },
   { id: "skills", label: "the skills" },
   { id: "ai", label: "ai fluency" },
-  { id: "review", label: "ready" },
 ] as const;
 
 type RolePreset = {
@@ -329,15 +328,6 @@ export default function EmployerOnboardingPage() {
                   <AIStep
                     value={aiExpectations}
                     onChange={setAiExpectations}
-                  />
-                )}
-                {step === 4 && (
-                  <ReviewStep
-                    roleTitle={roleTitle}
-                    company={company}
-                    roleContext={roleContext}
-                    skills={skills}
-                    aiExpectations={aiExpectations}
                   />
                 )}
               </motion.div>
@@ -960,106 +950,6 @@ function AIStep({
         <Meta right={`${value.length} / 400`} />
       </div>
     </>
-  );
-}
-
-function ReviewStep({
-  roleTitle,
-  company,
-  roleContext,
-  skills,
-  aiExpectations,
-}: {
-  roleTitle: string;
-  company: string;
-  roleContext: string;
-  skills: string[];
-  aiExpectations: string;
-}) {
-  return (
-    <>
-      <StepHeader
-        index={4}
-        question={
-          <>
-            Ready to <em style={{ color: ACCENT, fontStyle: "italic" }}>generate?</em>
-          </>
-        }
-        intent="We'll draw the skill graph from this, then design a test from the graph."
-      />
-      <div className="mt-9 space-y-5">
-        <ReviewRow label="Role">
-          <span style={{ color: CREAM }}>{roleTitle}</span>
-          {company && (
-            <span style={{ color: CREAM_DIM }}> · {company}</span>
-          )}
-        </ReviewRow>
-        <ReviewRow label="Context">
-          <span
-            className="line-clamp-3"
-            style={{
-              color: CREAM_DIM,
-              fontFamily: "'Instrument Serif', Georgia, serif",
-              fontStyle: "italic",
-            }}
-          >
-            "{roleContext}"
-          </span>
-        </ReviewRow>
-        <ReviewRow label="Skills">
-          <div className="flex flex-wrap gap-1.5">
-            {skills.map((s) => (
-              <span
-                key={s}
-                className="inline-flex items-center px-2.5 py-1 text-[11.5px]"
-                style={{
-                  border: "1px dashed rgba(237,230,210,0.28)",
-                  color: CREAM,
-                  fontFamily: "'Space Mono', monospace",
-                  borderRadius: 999,
-                }}
-              >
-                {s}
-              </span>
-            ))}
-          </div>
-        </ReviewRow>
-        {aiExpectations && (
-          <ReviewRow label="AI fluency">
-            <span
-              className="line-clamp-2"
-              style={{
-                color: CREAM_DIM,
-                fontFamily: "'Instrument Serif', Georgia, serif",
-                fontStyle: "italic",
-              }}
-            >
-              "{aiExpectations}"
-            </span>
-          </ReviewRow>
-        )}
-      </div>
-    </>
-  );
-}
-
-function ReviewRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="grid grid-cols-[110px_1fr] gap-4 items-baseline">
-      <div
-        className="text-[10.5px] tracking-[0.22em] uppercase"
-        style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
-      >
-        {label}
-      </div>
-      <div className="text-[14px] leading-relaxed">{children}</div>
-    </div>
   );
 }
 
