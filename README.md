@@ -11,14 +11,14 @@ Two browser-based training simulators that teach incident response and crisis co
 
 Install these before anything else.
 
-### 1. Node.js 26+
+### 1. Node.js 20+
 
 ```bash
 # macOS (Homebrew)
 brew install node
 
 # Verify
-node --version   # should print v26.x.x or higher
+node --version   # should print v20.x.x or higher (v20 LTS, v22 LTS, or v23+ all work)
 ```
 
 ### 2. pnpm
@@ -27,7 +27,7 @@ node --version   # should print v26.x.x or higher
 npm install -g pnpm
 
 # Verify
-pnpm --version   # should print 11.x.x
+pnpm --version   # should print 9.x.x or higher
 ```
 
 ---
@@ -44,17 +44,13 @@ pnpm install
 
 This installs dependencies for all packages in the monorepo at once.
 
-> **macOS arm64 note**: If you see an esbuild error like `Cannot find module @esbuild/linux-x64`, run:
+> **macOS arm64 note**: The workspace lockfile was generated on Replit's Linux environment. Native macOS binaries for `rollup`, `lightningcss`, and `@tailwindcss/oxide` are explicitly included as devDependencies in the root `package.json`, so `pnpm install` handles them automatically — no manual steps needed. `esbuild` bundles its own platform binary via a post-install script and works without any extra configuration.
+>
+> If you still see a build error mentioning a missing platform binary, try:
 > ```bash
-> ln -s ../.pnpm/@esbuild+darwin-arm64@$(node -e "console.log(require('./node_modules/.pnpm/lock.yaml') || '0.27.3')")/node_modules/@esbuild/darwin-arm64 \
->       node_modules/@esbuild/darwin-arm64
+> pnpm install
 > ```
-> Or just find the version in `pnpm-lock.yaml` and create the symlink manually:
-> ```bash
-> ls node_modules/.pnpm | grep esbuild+darwin   # find the version
-> ln -s ../.pnpm/@esbuild+darwin-arm64@<version>/node_modules/@esbuild/darwin-arm64 \
->       node_modules/@esbuild/darwin-arm64
-> ```
+> (re-running install resolves most platform mismatch issues)
 
 ---
 
@@ -146,6 +142,9 @@ pnpm --filter @workspace/api-spec run codegen
 ---
 
 ## Troubleshooting
+
+**`command not found: export` when starting the API server**
+→ This was a bug in `artifacts/api-server/package.json` — the `dev` script used `export NODE_ENV=development` which is not supported by pnpm's shell emulator (`shell-emulator=true` in `.npmrc`). It has been fixed to `NODE_ENV=development pnpm run build && pnpm run start`. If you see this error, make sure you're on the latest version of the code.
 
 **"PORT environment variable is required"**
 → You must set `PORT=<number>` before each server command (see above).
