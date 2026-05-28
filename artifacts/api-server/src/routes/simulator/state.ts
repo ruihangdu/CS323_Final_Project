@@ -24,6 +24,7 @@ export interface SimulatorState {
   time: string;
   scenarioId: string;
   scenarioSelected: boolean;
+  scenarioStartedAt: number;
   diagnosisSubmitted: boolean;
   diagnosisScore: number;
   recoveryCompleted: boolean;
@@ -64,12 +65,13 @@ export function makeEvent(
   return { id: uuidv4(), time, source, message, type };
 }
 
-function blankState(scenarioId = "maint_bot", scenarioSelected = false): SimulatorState {
+function blankState(scenarioId = "maint_bot", scenarioSelected = false, startedAt = 0): SimulatorState {
   const scenario = SCENARIOS[scenarioId];
   return {
     time: scenario?.initialTime ?? "02:14",
     scenarioId,
     scenarioSelected,
+    scenarioStartedAt: startedAt,
     diagnosisSubmitted: false,
     diagnosisScore: 0,
     recoveryCompleted: false,
@@ -117,7 +119,7 @@ export function createInitialState(): SimulatorState {
 }
 
 export function createScenarioState(scenarioId: string): SimulatorState {
-  return blankState(scenarioId, true);
+  return blankState(scenarioId, true, Date.now());
 }
 
 export function computeTotalScore(score: ScoreBreakdown): number {

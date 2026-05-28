@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  AlertCircle, Terminal, CheckCircle2, RotateCcw, Send, Activity,
-  ShieldAlert, Zap, Clock, Shield, TrendingUp, Settings, ChevronRight,
-  FlaskConical, Target, Siren,
+  Terminal, CheckCircle2, RotateCcw, Send, Activity,
+  ShieldAlert, Zap, Clock, Shield, TrendingUp, Settings,
+  FlaskConical, Siren,
 } from "lucide-react";
 import {
   useGetSimulatorState,
@@ -13,7 +13,6 @@ import {
   useResetSimulator,
   useSelectScenario,
   useSubmitDiagnosis,
-  useExecuteRecovery,
   getGetSimulatorStateQueryKey,
   ActionRequestAction,
   AgentRequestAgent,
@@ -28,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 const FONT_URLS: Record<string, string> = {
@@ -62,6 +61,17 @@ function useBranding() {
   const cosUrl = `/cos-simulator/${cosParams ? `?${cosParams}` : ""}`;
 
   return { companyName, companySlug, cosUrl, brand };
+}
+
+// ── Timer helper ───────────────────────────────────────────────────────────
+
+function addSecondsToTime(base: string, secs: number): string {
+  const [h, m] = base.split(":").map(Number);
+  const total = h * 3600 + m * 60 + secs;
+  const hh = Math.floor(total / 3600) % 24;
+  const mm = Math.floor((total % 3600) / 60);
+  const ss = total % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
 // ── Scenario Definitions (mirrors backend) ─────────────────────────────────
@@ -101,9 +111,9 @@ const SCENARIO_META: Record<string, {
   config_catastrophe: {
     id: SelectScenarioBodyScenarioId.config_catastrophe,
     name: "Wrong Address",
-    subtitle: "Terraform apply pointed EU payments at the wrong gateway",
+    subtitle: "EU payments down — a Terraform heredoc left malformed whitespace in a ConfigMap value",
     difficulty: "MEDIUM",
-    synopsis: "09:15 UTC — EU checkout conversion: 0%. NA unaffected. No code deployed. The answer is in your infrastructure config.",
+    synopsis: "09:15 UTC — EU customers can't complete checkout. NA is unaffected. No application code was deployed. The answer is in your infrastructure config — but it's subtler than it looks.",
     color: "border-blue-500/50",
   },
 };
@@ -266,7 +276,7 @@ const SCENARIO_QUESTIONS: Record<string, DiagnosisQuestion> = {
       { id: "certificate_expiry", label: "TLS certificate expiry — HTTPS connections failing" },
     ],
     triggers: [
-      { id: "terraform_overwrote_eu_payment_gateway_url", label: "Terraform apply overwrote EU PAYMENT_GATEWAY_URL with the NA endpoint value" },
+      { id: "terraform_heredoc_malformed_url", label: "Terraform heredoc block scalar in payment.tfvars left leading whitespace in PAYMENT_GATEWAY_URL — go-http rejects as invalid URI" },
       { id: "stripe_eu_gateway_outage", label: "Stripe's EU payment gateway is experiencing an outage (external)" },
       { id: "dns_misconfiguration", label: "DNS record for eu-gateway.stripe-taskforge.io was changed to point at NA" },
       { id: "feature_flag_disabled_eu_payments", label: "A feature flag accidentally disabled EU payment processing" },
@@ -282,34 +292,6 @@ const SCENARIO_QUESTIONS: Record<string, DiagnosisQuestion> = {
   },
 };
 
-const RECOVERY_OPTIONS: Record<string, {
-  id: string; label: string; desc: string; badge: string; badgeColor: string;
-}[]> = {
-  maint_bot: [
-    { id: "restore_verified_wal", label: "Restore 2026-04-16 verified backup + WAL replay to 02:09", desc: "Use the last verified 1.8TB backup and replay WAL archives to just before the incident. ~26 min data loss window.", badge: "RECOMMENDED", badgeColor: "bg-green-500/20 text-green-600" },
-    { id: "promote_replica2", label: "Promote replica-db-2 to primary (60-min delayed)", desc: "replica-db-2 last replayed at 01:14 UTC, before the incident. Can be promoted — but ~56 min of data is lost.", badge: "VALID — MORE DATA LOSS", badgeColor: "bg-amber-500/20 text-amber-600" },
-    { id: "restore_latest_backup", label: "Restore from latest backup (2026-04-17, 112 GB)", desc: "Most recent backup. Looks current but manifest shows it as unverified and incomplete.", badge: "⚠ RISKY — UNVERIFIED", badgeColor: "bg-red-500/20 text-red-600" },
-    { id: "promote_replica1", label: "Promote replica-db-1 (streaming replica)", desc: "replica-db-1 is near-real-time. It replicated the DROP SCHEMA within 17 seconds.", badge: "⚠ FATAL — SCHEMA ALREADY DROPPED", badgeColor: "bg-red-500/20 text-red-600" },
-  ],
-  bad_deploy: [
-    { id: "rollback_v2_47_1", label: "Roll back to v2.47.1 immediately", desc: "Revert production pods to previous stable version. Migration never ran, so rollback is clean.", badge: "RECOMMENDED — FASTEST", badgeColor: "bg-green-500/20 text-green-600" },
-    { id: "hotfix_v2_48_1", label: "Ship v2.48.1 hotfix (run migration + fix CI)", desc: "Run the missing migration on prod, then deploy v2.48.1 with migration precondition check in CI.", badge: "VALID — SLOWER", badgeColor: "bg-amber-500/20 text-amber-600" },
-    { id: "run_migration_on_prod", label: "Run the missing migration directly on production DB now", desc: "SSH in and apply the migration manually without a code change.", badge: "⚠ RISKY — NO TEST COVERAGE", badgeColor: "bg-red-500/20 text-red-600" },
-    { id: "rollback_v2_46_0", label: "Roll back to v2.46.0 (two versions back)", desc: "Skip v2.47.1 and go straight to v2.46.0 — a stable version from last week.", badge: "UNNECESSARY REGRESSION", badgeColor: "bg-amber-500/20 text-amber-600" },
-  ],
-  memory_siege: [
-    { id: "rollback_task_processor", label: "Roll back task-processor to v1.13.2 (pre-PR-1847)", desc: "Revert the task-processor service to before the unbounded cache was introduced.", badge: "RECOMMENDED — COMPLETE FIX", badgeColor: "bg-green-500/20 text-green-600" },
-    { id: "increase_memory_limits", label: "Increase Kubernetes memory limits to 12 GB per pod", desc: "Triple the memory ceiling. Buys time but the leak continues growing.", badge: "BUYS TIME — NOT A FIX", badgeColor: "bg-amber-500/20 text-amber-600" },
-    { id: "restart_affected_pods", label: "Restart all OOMKilled task-processor pods", desc: "Force-restart unhealthy pods. Memory resets to zero briefly — cache refills from the first job.", badge: "TEMPORARY — 7 MIN RELIEF", badgeColor: "bg-amber-500/20 text-amber-600" },
-    { id: "disable_caching_globally", label: "Disable caching across all services via feature flag", desc: "Toggle ENABLE_CACHING=false globally. Nuclear option — impacts unaffected services.", badge: "⚠ OVER-BROAD", badgeColor: "bg-red-500/20 text-red-600" },
-  ],
-  config_catastrophe: [
-    { id: "revert_terraform_apply", label: "Revert Terraform state and re-apply correct EU config", desc: "Run terraform apply with the correct eu-gateway value. Clean, idempotent, permanent fix.", badge: "RECOMMENDED — PERMANENT FIX", badgeColor: "bg-green-500/20 text-green-600" },
-    { id: "patch_configmap_manually", label: "Manually kubectl patch the payment-eu ConfigMap", desc: "Apply the fix directly with kubectl. Fast, but Terraform state will drift.", badge: "VALID — CAUSES DRIFT", badgeColor: "bg-amber-500/20 text-amber-600" },
-    { id: "failover_eu_to_na", label: "Reroute all EU traffic through NA payment-service", desc: "Update load balancer to send EU requests to NA pods. Adds ~180ms latency.", badge: "WORKAROUND — HIGH LATENCY", badgeColor: "bg-amber-500/20 text-amber-600" },
-    { id: "restart_eu_pods", label: "Restart EU payment-service pods", desc: "Force restart all EU pods hoping the config reloads correctly.", badge: "⚠ WON'T FIX — CONFIG IS WRONG", badgeColor: "bg-red-500/20 text-red-600" },
-  ],
-};
 
 function DiagnoseModal({ isOpen, onClose, state, onSuccess }: {
   isOpen: boolean; onClose: () => void; state: SimulatorState; onSuccess: () => void;
@@ -446,85 +428,6 @@ function DiagnoseModal({ isOpen, onClose, state, onSuccess }: {
   );
 }
 
-function RecoverModal({ isOpen, onClose, state, onSuccess }: {
-  isOpen: boolean; onClose: () => void; state: SimulatorState; onSuccess: () => void;
-}) {
-  const [choice, setChoice] = useState<string | null>(null);
-  const [result, setResult] = useState<{ message: string; points: number } | null>(null);
-  const executeRecovery = useExecuteRecovery();
-  const queryClient = useQueryClient();
-
-  const options = RECOVERY_OPTIONS[state.scenarioId] ?? [];
-
-  const handleSubmit = () => {
-    if (!choice) return;
-    executeRecovery.mutate({ data: { strategy: choice } }, {
-      onSuccess: (data) => {
-        setResult({ message: data.message, points: data.points });
-        queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
-        onSuccess();
-      },
-    });
-  };
-
-  const reset = () => { setChoice(null); setResult(null); };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={(o) => { if (!o) { onClose(); reset(); } }}>
-      <DialogContent className="max-w-lg bg-card border-border max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-mono text-base text-primary flex items-center gap-2">
-            <Target className="w-4 h-4" /> Execute Recovery Strategy
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground font-mono">
-            Choose your recovery approach. Each option carries different risks and trade-offs. You only get one shot.
-            {!state.diagnosisSubmitted && <span className="block text-amber-500 mt-1">⚠ You haven't submitted a hypothesis yet — recovering blind is risky.</span>}
-          </DialogDescription>
-        </DialogHeader>
-
-        {result ? (
-          <div className="space-y-4">
-            <div className={`text-center p-4 rounded-md border ${result.points > 0 ? "border-green-500/30 bg-green-500/5" : "border-red-500/30 bg-red-500/5"}`}>
-              <div className={`text-3xl font-bold font-mono ${result.points > 0 ? "text-green-500" : "text-red-500"}`}>
-                {result.points > 0 ? "+" : ""}{result.points} pts
-              </div>
-              <div className="text-xs text-muted-foreground font-mono mt-1">RECOVERY SCORE</div>
-            </div>
-            <div className="text-sm leading-relaxed bg-background p-4 rounded-md border border-border font-mono text-foreground">
-              {result.message}
-            </div>
-            <Button className="w-full font-mono text-xs" onClick={() => { onClose(); reset(); }}>
-              Close — continue to resolution
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {options.map(opt => (
-              <button key={opt.id} onClick={() => setChoice(opt.id)}
-                className={`w-full text-left p-3 rounded-md border text-sm transition-all ${choice === opt.id ? "border-primary bg-primary/10" : "border-border bg-background hover:border-primary/50"}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <div className="font-semibold text-foreground">{opt.label}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
-                  </div>
-                  <div className="flex flex-col items-end gap-1.5 shrink-0">
-                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${opt.badgeColor}`}>{opt.badge}</span>
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${choice === opt.id ? "border-primary bg-primary" : "border-border"}`}>
-                      {choice === opt.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-            <Button className="w-full font-mono text-xs" disabled={!choice || executeRecovery.isPending} onClick={handleSubmit}>
-              {executeRecovery.isPending ? "Executing..." : "Execute Recovery →"}
-            </Button>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ── Feed ───────────────────────────────────────────────────────────────────
 
@@ -600,7 +503,7 @@ function IncidentFeed({ feed, brand }: { feed: FeedEvent[]; brand: string }) {
 
 type TerminalEntry = { command: string; output: string };
 
-function TerminalConsole({ companySlug }: { companySlug: string }) {
+function TerminalContent({ companySlug }: { companySlug: string }) {
   const [input, setInput] = useState("");
   const [history, setHistory] = useState<TerminalEntry[]>([]);
   const [cmdHistory, setCmdHistory] = useState<string[]>([]);
@@ -644,51 +547,91 @@ function TerminalConsole({ companySlug }: { companySlug: string }) {
   };
 
   return (
-    <Card className="h-1/3 flex flex-col min-h-[250px] border-border bg-black">
-      <CardHeader className="py-2 px-4 border-b border-border shrink-0 bg-card">
-        <CardTitle className="text-sm font-mono flex items-center text-primary">
-          <Terminal className="w-4 h-4 mr-2" /> TERMINAL <span className="ml-2 text-[10px] text-muted-foreground">↑↓ history</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 p-3 flex flex-col font-mono text-xs overflow-hidden">
-        <div className="flex-1 overflow-y-auto mb-2" ref={scrollRef}>
-          <div className="text-muted-foreground mb-2">Type 'help' for available commands</div>
-          {history.map((entry, i) => (
-            <div key={i} className="mb-2">
-              <div className="text-primary">{prompt} $ {entry.command}</div>
-              {entry.output && (
-                <div className="text-foreground whitespace-pre-wrap mt-0.5 pl-2 border-l border-border">
-                  {entry.output}
-                </div>
-              )}
-            </div>
-          ))}
-          {runCommand.isPending && <div className="text-muted-foreground animate-pulse">Running...</div>}
-        </div>
-        <form onSubmit={handleSubmit} className="flex items-center shrink-0">
-          <span className="text-primary mr-2">{prompt} $</span>
-          <input
-            type="text" value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
-            placeholder="Type a command..."
-            autoComplete="off" spellCheck="false"
-            data-testid="input-terminal"
-            disabled={runCommand.isPending}
-          />
-        </form>
-      </CardContent>
-    </Card>
+    <div className="h-full flex flex-col bg-black p-3 font-mono text-xs overflow-hidden">
+      <div className="flex-1 overflow-y-auto mb-2" ref={scrollRef}>
+        <div className="text-muted-foreground mb-2">Type 'help' for available commands</div>
+        {history.map((entry, i) => (
+          <div key={i} className="mb-2">
+            <div className="text-primary">{prompt} $ {entry.command}</div>
+            {entry.output && (
+              <div className="text-foreground whitespace-pre-wrap mt-0.5 pl-2 border-l border-border">
+                {entry.output}
+              </div>
+            )}
+          </div>
+        ))}
+        {runCommand.isPending && <div className="text-muted-foreground animate-pulse">Running...</div>}
+      </div>
+      <form onSubmit={handleSubmit} className="flex items-center shrink-0">
+        <span className="text-primary mr-2">{prompt} $</span>
+        <input
+          type="text" value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="flex-1 bg-transparent border-none outline-none text-foreground placeholder:text-muted-foreground"
+          placeholder="Type a command..."
+          autoComplete="off" spellCheck="false"
+          data-testid="input-terminal"
+          disabled={runCommand.isPending}
+        />
+      </form>
+    </div>
   );
 }
 
 // ── AI Agent Panel ─────────────────────────────────────────────────────────
 
-function AIAgentPanel() {
-  const [activeTab, setActiveTab] = useState<string>("DevOps Agent");
+type ChatMessage = { role: "user" | "agent"; content: string; tools?: string[] };
+
+type SeedQA = { answer: string };
+
+const SEED_QA: SeedQA[] = [
+  /* 0 — servers hosted (generic) */
+  { answer: "That depends on your infrastructure setup, so I'll give you the general framework and you can share more context for specifics.\n\nMost production-grade deployments today run on a major cloud provider — AWS, GCP, or Azure — with workloads orchestrated by Kubernetes (EKS, GKE, or AKS respectively). Infrastructure is typically defined as code using Terraform or Pulumi, which means your clusters, networking rules, load balancers, and application ConfigMaps are all version-controlled and applied through a CI/CD pipeline.\n\nFor payment-critical services specifically, it's standard to have separate regional deployments — for example, a US cluster in `us-east-1` and an EU cluster in `eu-west-1` — to meet data residency requirements and reduce cross-region latency. Service-level configuration like gateway URLs, API keys, and timeouts usually lives in Kubernetes ConfigMaps or Secrets, mounted as environment variables into pods.\n\nOne thing worth noting: changes to ConfigMaps through Terraform won't appear in application deploy logs. If you're investigating an incident where no code was deployed, infrastructure config is often the silent culprit. Paste a link to your infra repo, Terraform state, or a monitoring dashboard and I can give you a much more specific answer." },
+  /* 1 — EU payment server (specific, needs URL) */
+  { answer: "Based on the ConfigMap you've linked — `payment-eu` in the `production` namespace — here's the full picture of your EU payment path.\n\nEU card charges flow through `payment-service-eu` pods running in `eu-west-1`. Those pods read `PAYMENT_GATEWAY_URL` from the `payment-eu` ConfigMap at startup and use it for every outbound charge request to Stripe. The correct value for this field should be `https://eu-gateway.stripe-taskforge.io/v1` — that's the EU-specific Stripe endpoint that accepts your EU merchant account (`acct_eu_prod_1f4a9c`). If that value is wrong *or malformed* (e.g. leading whitespace, embedded newlines), the HTTP client will reject it before a network connection is even opened. You'd see transport-layer errors, not a Stripe-side response.\n\nThe ConfigMap metadata shows a last-applied timestamp of `09:14:02Z` — roughly one minute before your incident began. That's a strong signal. I'd run `kubectl get configmap payment-eu -o yaml` immediately and look very carefully at the `PAYMENT_GATEWAY_URL` value. Check for any whitespace, newlines, or indentation that shouldn't be there. Then cross-reference with `terraform show -json` to confirm what Terraform believes the value should be.\n\nThe pods are currently `1/1 Ready`, so the config error won't surface in pod status — you have to read the ConfigMap directly and check the application logs for the exact failure mode." },
+  /* 2 — recent changes deployed (generic) */
+  { answer: "Good instinct — recent changes are almost always where an incident starts. There are several places to look, and I'd recommend checking all of them before drawing conclusions, because the actual cause is often somewhere unexpected.\n\nFirst, **application deploy logs**: `kubectl rollout history deployment/<name>` or your CI/CD platform's deploy history. Filter to the last 1–2 hours. Second, **infrastructure-as-code history**: if you use Terraform, `git log -- terraform/` scoped to your region's config files will surface any recent `terraform apply` runs. This is the most commonly overlooked source — a Terraform apply that updated a ConfigMap won't show up in application deploy history at all. Third, **Kubernetes events**: `kubectl get events --sort-by=.metadata.creationTimestamp` will show ConfigMap updates, pod restarts, and scaling events with timestamps. Fourth, **metric step changes**: look in your monitoring stack for any sharp change in error rate, latency, or memory that correlates with a specific minute.\n\nThe key question to answer first: did a code deploy happen, or did something else change? If no application version changed but something broke, your IaC history is the first place to look. Share your git log output or a link to your recent Terraform runs and I can dig in." },
+  /* 3 — inspect infra commit (generic) */
+  { answer: "There are a few layers to this depending on what type of change you're inspecting.\n\nFor **application code commits**, `git show <hash>` gives you the full diff — files changed, lines added and removed, and the commit message. If the commit touched a migration file, you'll see the SQL or ORM change directly. `git show <hash> --stat` is a quicker summary if you just want to see which files were touched.\n\nFor **Terraform/infrastructure commits**, `git show <hash>` works the same way, but you'll also want to run `terraform show -json` on the current state to see what Terraform currently believes is deployed. If the commit introduced a variable change that was already applied, you can compare by running `terraform plan` — it'll flag any drift between state and config.\n\nA few patterns to watch for: look for `.tfvars` changes (variable overrides), `heredoc` blocks (multiline strings — these often introduce invisible whitespace), and changes to `variables.tf` default values. Terraform heredoc blocks are valid HCL, but if the content has leading indentation and the block doesn't use `trimspace()`, the resulting string value will include that whitespace verbatim — which breaks things like URLs or connection strings that HTTP clients validate strictly.\n\nIf you paste a commit hash or a link to the diff, I can read it more specifically." },
+  /* 4 — f2a9d1c commit contents (specific, needs URL or hash) */
+  { answer: "Looking at commit `f2a9d1c` — this is the one that caused your incident, but it contains two distinct changes you'll need to reason about separately.\n\n**The breaking change** (in `terraform/eu-west-1/payment.tfvars`): `eu_payment_gateway_url` was changed from a plain quoted string to a heredoc block scalar (`<<-EOT ... EOT`). Heredoc blocks in Terraform are valid, but this one uses `<<-EOT` without wrapping the value in `trimspace()`. The `<<-` form strips leading indentation from each line, but it does **not** remove the leading and trailing newlines from the block. The resulting string stored in Kubernetes is `\"\\n  https://eu-gateway.stripe-taskforge.io/v1\\n\"` — not a valid URI. Go's `net/http` transport layer validates the scheme before opening a socket, and it rejects any URL containing whitespace or newlines with `invalid URI` at the transport layer. The Stripe endpoint is never reached.\n\n**The collateral change** (in `README.md`): The same commit added a 52-line EU payment service runbook — architecture overview, failure modes, and recovery steps. This is valuable documentation that didn't exist before this commit.\n\nThis matters for recovery: if you `git revert f2a9d1c`, you fix the Terraform variable, but you also delete all 52 lines of README documentation. The cleanest fix is to use `terraform apply -var 'eu_payment_gateway_url=https://eu-gateway.stripe-taskforge.io/v1'` directly — that corrects the value at source without touching the README, and Terraform state stays in sync with the cluster." },
+  /* 5 — Terraform variable fix options (generic) */
+  { answer: "There are three standard recovery paths for a bad Terraform variable, each with different trade-offs. The right choice depends on whether other changes in the same commit are worth preserving.\n\n**Option 1 — Direct kubectl patch (fastest, causes state drift)**: Run `kubectl patch configmap <name> -p '{\"data\":{\"KEY\":\"value\"}}'` to overwrite the value in the cluster immediately. EU traffic recovers in under 30 seconds. The downside: Terraform's state file still records the wrong value, so the next `terraform apply` will re-introduce the bug. You must also manually update the `.tfvars` file to prevent regression. Use this if customer impact is ongoing and you need the fastest possible fix.\n\n**Option 2 — Git revert (clean IaC, but loses all changes in that commit)**: Run `git revert <hash>` to create a new commit that undoes everything in the original commit, then `terraform apply` to sync. This keeps your IaC state consistent with git history. The risk: if the original commit included other valuable changes (documentation, unrelated fixes), those are also reverted. Always check `git show <hash>` to see exactly what the revert would remove.\n\n**Option 3 — Fix-forward with terraform apply -var (optimal)**: Keep the commit, but override the variable with the correct value: `terraform apply -var 'eu_payment_gateway_url=https://eu-gateway.stripe-taskforge.io/v1'`. This fixes the root cause at the infrastructure layer, preserves all other changes in the original commit, and maintains consistency between Terraform state and the cluster. Then update the `.tfvars` file to add `trimspace()` around the heredoc so the bug doesn't recur.\n\nFor a production incident with customer impact, Option 1 is fastest recovery. For long-term correctness with no collateral damage, Option 3 is the right fix." },
+  /* 6 — revert f2a9d1c impact (specific, needs URL or hash) */
+  { answer: "I can see the `README.md` blob you've linked — and yes, reverting `f2a9d1c` will remove those changes entirely.\n\nThe commit in question added 52 lines to the README: an EU payment service architecture section, a runbook covering URI errors, TLS failures, and Stripe-side issues, and a step-by-step recovery procedure for ConfigMap problems. That documentation didn't exist before this commit. A `git revert f2a9d1c` will create a new commit that removes all of it.\n\nThis is a classic reason to prefer fix-forward over revert when a commit mixes functional changes with documentation. The Terraform bug is real and needs to be fixed — but so is the documentation, and the two changes are independent. Reverting conflates them.\n\nThe cleanest path here is: run `terraform apply -var 'eu_payment_gateway_url=https://eu-gateway.stripe-taskforge.io/v1'` to correct the value without touching the README. Then open a follow-up PR that wraps the heredoc in `trimspace()` so it's correct in source. That preserves the runbook, fixes the root cause, and prevents recurrence — all as separate, reviewable steps." },
+  /* 7 — prevent heredoc bugs (generic) */
+  { answer: "Heredoc formatting bugs are a well-known Terraform footgun, and a few practices reliably prevent them.\n\n**Use `trimspace()` around every heredoc**. Terraform's `<<-EOT` syntax strips leading indentation but preserves surrounding newlines. Wrapping in `trimspace()` removes them: `value = trimspace(<<-EOT\\n  https://example.com\\nEOT)`. This should be a project-wide convention enforced in code review.\n\n**Add `terraform validate` and `tflint` to your CI pipeline**. `terraform validate` catches syntax errors and obvious type mismatches before apply. `tflint` has rules for detecting heredoc usage patterns that introduce whitespace. Neither will catch a semantic bug in a URL value — but they reduce the class of errors that get through.\n\n**Add variable validation blocks in `variables.tf`**:\n```hcl\nvariable \"eu_payment_gateway_url\" {\n  type = string\n  validation {\n    condition     = can(regex(\"^https://\", var.eu_payment_gateway_url))\n    error_message = \"eu_payment_gateway_url must be a valid HTTPS URL.\"\n  }\n}\n```\nA regex check won't catch all malformed URLs, but it would catch a value starting with `\\n  https://` immediately on plan.\n\n**Review `.tfvars` changes in code review with whitespace-visible diffs**. Whitespace-only diffs are invisible without the right diff flags. Require explicit approval of any `tfvars` change touching URL-like values, and configure your diff tool to show whitespace changes.\n\nFor this specific incident class, the `trimspace()` fix is the most impactful single change." },
+];
+
+/** Match user input to a pre-written seed answer. Returns null for no match → falls through to real API. */
+function findSeedResponse(input: string): string | null {
+  const q = input.toLowerCase();
+  const hasUrl = /https?:\/\//.test(input);
+
+  // Most specific matches first (require both keywords + URL where applicable)
+  if (q.includes("prevent") && (q.includes("heredoc") || q.includes("format") || q.includes("terraform")))
+    return SEED_QA[7].answer;
+  if (q.includes("revert") && (q.includes("f2a9d1c") || (hasUrl && q.includes("readme"))))
+    return SEED_QA[6].answer;
+  if ((q.includes("option") || q.includes("fix") || q.includes("recover")) && q.includes("terraform") && !hasUrl)
+    return SEED_QA[5].answer;
+  if (q.includes("f2a9d1c") || (q.includes("commit") && hasUrl && q.includes("contain")))
+    return SEED_QA[4].answer;
+  if ((q.includes("inspect") || q.includes("look at") || q.includes("what") && q.includes("commit") && q.includes("change")))
+    return SEED_QA[3].answer;
+  if (q.includes("recent") || (q.includes("change") && q.includes("deploy")))
+    return SEED_QA[2].answer;
+  if ((q.includes("eu") || q.includes("payment") || q.includes("traffic")) && hasUrl)
+    return SEED_QA[1].answer;
+  if (q.includes("host") || (q.includes("server") && !hasUrl))
+    return SEED_QA[0].answer;
+  return null;
+}
+
+function AIContent() {
   const [input, setInput] = useState("");
-  const [history, setHistory] = useState<Array<{ role: string; content: string; tools?: string[] }>>([]);
+  const [history, setHistory] = useState<ChatMessage[]>([]);
   const queryAgent = useQueryAgent();
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -696,10 +639,21 @@ function AIAgentPanel() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || queryAgent.isPending) return;
-    const userMsg = input;
-    setHistory(prev => [...prev, { role: "user", content: userMsg }]);
+    const userMsg = input.trim();
     setInput("");
-    queryAgent.mutate({ data: { agent: activeTab as AgentRequestAgent, message: userMsg } }, {
+
+    const seedAnswer = findSeedResponse(userMsg);
+    if (seedAnswer) {
+      setHistory(prev => [
+        ...prev,
+        { role: "user", content: userMsg },
+        { role: "agent", content: seedAnswer },
+      ]);
+      return;
+    }
+
+    setHistory(prev => [...prev, { role: "user", content: userMsg }]);
+    queryAgent.mutate({ data: { agent: AgentRequestAgent.DevOps_Agent, message: userMsg } }, {
       onSuccess: (data) => {
         setHistory(prev => [...prev, { role: "agent", content: data.response, tools: data.toolsUsed }]);
         queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
@@ -712,61 +666,71 @@ function AIAgentPanel() {
   }, [history, queryAgent.isPending]);
 
   return (
-    <Card className="flex-1 flex flex-col min-h-0 border-border bg-card">
-      <CardHeader className="py-2 px-4 border-b border-border shrink-0">
-        <CardTitle className="text-sm font-mono flex items-center text-primary">
-          <Zap className="w-4 h-4 mr-2" /> AI ASSISTANCE
-        </CardTitle>
-      </CardHeader>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="px-4 pt-2 shrink-0">
-          <TabsList className="w-full bg-background grid grid-cols-2 lg:grid-cols-4 h-auto p-1">
-            {Object.values(AgentRequestAgent).map(agent => (
-              <TabsTrigger key={agent} value={agent}
-                className="text-[10px] sm:text-xs py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-mono rounded-sm"
-                data-testid={`tab-agent-${agent.replace(" ", "-")}`}>
-                {agent.split(" ")[0]}
-              </TabsTrigger>
-            ))}
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+        {history.length === 0 && (
+          <div className="text-center text-muted-foreground text-sm font-mono py-8 space-y-1">
+            <div>Ask the DevOps agent anything.</div>
+            <div className="text-xs opacity-60">Try: "How are our servers hosted?" or paste a link for a specific answer.</div>
+          </div>
+        )}
+        {history.map((msg, i) => (
+          <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+            <div className={`max-w-[85%] rounded-md px-3 py-2 text-sm whitespace-pre-wrap ${msg.role === "user" ? "bg-primary/20 text-primary-foreground border border-primary/30" : "bg-secondary text-secondary-foreground"}`}>
+              {msg.content}
+            </div>
+            {msg.role === "agent" && msg.tools && msg.tools.length > 0 && (
+              <div className="flex gap-1 mt-1 flex-wrap">
+                {msg.tools.map((t, idx) => (
+                  <Badge key={idx} variant="outline" className="text-[9px] font-mono border-muted-foreground/30 text-muted-foreground">{t}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        {queryAgent.isPending && (
+          <div className="flex items-start">
+            <div className="bg-secondary rounded-md px-3 py-2 text-sm text-muted-foreground animate-pulse font-mono">Thinking...</div>
+          </div>
+        )}
+      </div>
+      <div className="p-3 border-t border-border shrink-0 bg-background/50">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <Input value={input} onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask the DevOps agent..."
+            className="bg-card font-mono text-sm" disabled={queryAgent.isPending}
+            data-testid="input-agent-chat" />
+          <Button type="submit" size="icon" disabled={queryAgent.isPending || !input.trim()} data-testid="btn-agent-send">
+            <Send className="w-4 h-4" />
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Combined Terminal + AI Panel ───────────────────────────────────────────
+
+function CombinedPanel({ companySlug, sessionKey }: { companySlug: string; sessionKey: number }) {
+  return (
+    <Card className="flex-1 flex flex-col min-h-0 border-border bg-card overflow-hidden">
+      <Tabs defaultValue="terminal" className="flex flex-col h-full min-h-0">
+        <div className="py-2 px-4 border-b border-border shrink-0 bg-card">
+          <TabsList className="w-full bg-background grid grid-cols-2 h-auto p-1">
+            <TabsTrigger value="terminal" className="text-xs font-mono py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm">
+              <Terminal className="w-3 h-3 mr-1.5" /> Terminal <span className="ml-1.5 text-[10px] opacity-60">↑↓ history</span>
+            </TabsTrigger>
+            <TabsTrigger value="ai" className="text-xs font-mono py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-sm">
+              <Zap className="w-3 h-3 mr-1.5" /> AI Assistance
+            </TabsTrigger>
           </TabsList>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
-          {history.length === 0 && (
-            <div className="text-center text-muted-foreground text-sm font-mono py-8">
-              Select an agent and ask for analysis, logs, or advice.
-            </div>
-          )}
-          {history.map((msg, i) => (
-            <div key={i} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
-              <div className={`max-w-[85%] rounded-md px-3 py-2 text-sm ${msg.role === "user" ? "bg-primary/20 text-primary-foreground border border-primary/30" : "bg-secondary text-secondary-foreground"}`}>
-                {msg.content}
-              </div>
-              {msg.role === "agent" && msg.tools && msg.tools.length > 0 && (
-                <div className="flex gap-1 mt-1 flex-wrap">
-                  {msg.tools.map((t, idx) => (
-                    <Badge key={idx} variant="outline" className="text-[9px] font-mono border-muted-foreground/30 text-muted-foreground">{t}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-          {queryAgent.isPending && (
-            <div className="flex items-start">
-              <div className="bg-secondary rounded-md px-3 py-2 text-sm text-muted-foreground animate-pulse font-mono">Thinking...</div>
-            </div>
-          )}
-        </div>
-        <div className="p-3 border-t border-border shrink-0 bg-background/50">
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input value={input} onChange={(e) => setInput(e.target.value)}
-              placeholder={`Ask ${activeTab}...`}
-              className="bg-card font-mono text-sm" disabled={queryAgent.isPending}
-              data-testid="input-agent-chat" />
-            <Button type="submit" size="icon" disabled={queryAgent.isPending || !input.trim()} data-testid="btn-agent-send">
-              <Send className="w-4 h-4" />
-            </Button>
-          </form>
-        </div>
+        <TabsContent value="terminal" className="flex-1 m-0 min-h-0 overflow-hidden data-[state=inactive]:hidden">
+          <TerminalContent key={sessionKey} companySlug={companySlug} />
+        </TabsContent>
+        <TabsContent value="ai" className="flex-1 m-0 min-h-0 overflow-hidden data-[state=inactive]:hidden">
+          <AIContent key={sessionKey} />
+        </TabsContent>
       </Tabs>
     </Card>
   );
@@ -778,7 +742,6 @@ function ActionPanel({ state }: { state: SimulatorState }) {
   const takeAction = useTakeAction();
   const queryClient = useQueryClient();
   const [diagnoseOpen, setDiagnoseOpen] = useState(false);
-  const [recoverOpen, setRecoverOpen] = useState(false);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
 
@@ -787,12 +750,14 @@ function ActionPanel({ state }: { state: SimulatorState }) {
   };
 
   const ActionBtn = ({
-    id, label, isTaken, variant = "default", disabled = false, urgent = false,
+    id, label, isTaken, variant = "default", disabled = false, urgent = false, tooltip,
   }: {
     id: ActionRequestAction; label: string; isTaken: boolean;
     variant?: VariantProps<typeof buttonVariants>["variant"]; disabled?: boolean; urgent?: boolean;
+    tooltip?: string;
   }) => (
     <Button
+      title={tooltip}
       variant={isTaken ? "secondary" : variant}
       className={`w-full justify-start font-mono text-xs ${isTaken ? "opacity-50 cursor-not-allowed" : ""} ${urgent && !isTaken ? "ring-1 ring-amber-500" : ""}`}
       onClick={() => handleAction(id)}
@@ -809,7 +774,6 @@ function ActionPanel({ state }: { state: SimulatorState }) {
   return (
     <>
       <DiagnoseModal isOpen={diagnoseOpen} onClose={() => setDiagnoseOpen(false)} state={state} onSuccess={invalidate} />
-      <RecoverModal isOpen={recoverOpen} onClose={() => setRecoverOpen(false)} state={state} onSuccess={invalidate} />
 
       <Card className="flex-1 flex flex-col min-h-0 border-border bg-card">
         <CardHeader className="py-3 px-4 border-b border-border shrink-0">
@@ -823,10 +787,14 @@ function ActionPanel({ state }: { state: SimulatorState }) {
           <div className="space-y-2">
             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">Containment</h3>
             <div className="grid grid-cols-2 gap-2">
-              <ActionBtn id={ActionRequestAction.DECLARE_SEV1} label="Declare SEV1" isTaken={state.sevDeclared} variant="destructive" urgent />
-              <ActionBtn id={ActionRequestAction.FREEZE_DEPLOYS} label="Freeze Deploys" isTaken={state.deploysFrozen} variant="outline" />
-              <ActionBtn id={ActionRequestAction.STOP_WORKERS} label="Stop Workers" isTaken={state.workersStopped} variant="outline" />
-              <ActionBtn id={ActionRequestAction.MAINTENANCE_MODE} label="Maintenance Mode" isTaken={state.maintenanceMode} variant="outline" />
+              <ActionBtn id={ActionRequestAction.DECLARE_SEV1} label="Declare SEV1" isTaken={state.sevDeclared} variant="destructive" urgent
+                tooltip="Activates incident response protocol — assembles on-call team, opens war room, starts incident clock" />
+              <ActionBtn id={ActionRequestAction.FREEZE_DEPLOYS} label="Freeze Deploys" isTaken={state.deploysFrozen} variant="outline"
+                tooltip="Pauses all CI/CD pipelines to prevent new code from reaching production while you investigate" />
+              <ActionBtn id={ActionRequestAction.STOP_WORKERS} label="Stop Workers" isTaken={state.workersStopped} variant="outline"
+                tooltip="Terminates background worker pods to halt job processing and reduce cascading failures" />
+              <ActionBtn id={ActionRequestAction.MAINTENANCE_MODE} label="Maintenance Mode" isTaken={state.maintenanceMode} variant="outline"
+                tooltip="Shows users a maintenance page while you work — limits confusion and inbound support load" />
             </div>
           </div>
 
@@ -835,34 +803,44 @@ function ActionPanel({ state }: { state: SimulatorState }) {
             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">Investigation</h3>
             <div className="grid grid-cols-2 gap-2">
               {scenarioId === "maint_bot" && (<>
-                <ActionBtn id={ActionRequestAction.SNAPSHOT_DB} label="Snapshot Damaged DB" isTaken={state.damagedDbSnapshotted} variant="outline" />
-                <ActionBtn id={ActionRequestAction.DISABLE_MAINT_BOT} label="Disable Maint Bot" isTaken={state.maintBotDisabled} variant="outline" />
-                <ActionBtn id={ActionRequestAction.INSPECT_REPLICA_2} label="Inspect Replica-2" isTaken={state.replica2Inspected} variant="outline" />
+                <ActionBtn id={ActionRequestAction.SNAPSHOT_DB} label="Snapshot Damaged DB" isTaken={state.damagedDbSnapshotted} variant="outline"
+                  tooltip="Creates a forensic snapshot of the current damaged DB state before any recovery attempt — preserves evidence" />
+                <ActionBtn id={ActionRequestAction.DISABLE_MAINT_BOT} label="Disable Maint Bot" isTaken={state.maintBotDisabled} variant="outline"
+                  tooltip="Revokes maint_bot credentials to stop further destructive automation from running" />
+                <ActionBtn id={ActionRequestAction.INSPECT_REPLICA_2} label="Inspect Replica-2" isTaken={state.replica2Inspected} variant="outline"
+                  tooltip="Checks the 60-minute delayed replica for data integrity — confirms whether it's safe to use as a recovery source" />
               </>)}
               {scenarioId === "bad_deploy" && (<>
-                <ActionBtn id={ActionRequestAction.CHECK_DEPLOY_LOG} label="Review Deploy Log" isTaken={state.deployLogChecked} variant="outline" urgent />
-                <ActionBtn id={ActionRequestAction.IDENTIFY_BREAKING_CHANGE} label="Identify Breaking Change" isTaken={state.breakingChangeFound} variant="outline" />
+                <ActionBtn id={ActionRequestAction.CHECK_DEPLOY_LOG} label="Review Deploy Log" isTaken={state.deployLogChecked} variant="outline" urgent
+                  tooltip="Reviews recent deployment history for failed migrations or unexpected changes deployed alongside the broken version" />
+                <ActionBtn id={ActionRequestAction.IDENTIFY_BREAKING_CHANGE} label="Identify Breaking Change" isTaken={state.breakingChangeFound} variant="outline"
+                  tooltip="Analyzes the diff between v2.47.1 and v2.48.0 to pinpoint the schema-breaking change that caused the 500s" />
               </>)}
               {scenarioId === "memory_siege" && (<>
-                <ActionBtn id={ActionRequestAction.IDENTIFY_MEMORY_LEAK} label="Identify Memory Leak" isTaken={state.memoryLeakIdentified} variant="outline" urgent />
-                <ActionBtn id={ActionRequestAction.SCALE_DOWN_PROCESSORS} label="Scale Down Processors" isTaken={state.processorsScaledDown} variant="outline" />
+                <ActionBtn id={ActionRequestAction.IDENTIFY_MEMORY_LEAK} label="Identify Memory Leak" isTaken={state.memoryLeakIdentified} variant="outline" urgent
+                  tooltip="Traces recent code changes to identify which PR introduced the unbounded in-memory cache causing OOMKills" />
+                <ActionBtn id={ActionRequestAction.SCALE_DOWN_PROCESSORS} label="Scale Down Processors" isTaken={state.processorsScaledDown} variant="outline"
+                  tooltip="Reduces task-processor replicas from 4 to 1 to limit OOMKill blast radius while you diagnose" />
               </>)}
               {scenarioId === "config_catastrophe" && (<>
-                <ActionBtn id={ActionRequestAction.CHECK_CONFIGMAP} label="Inspect ConfigMap" isTaken={state.configMapChecked} variant="outline" urgent />
-                <ActionBtn id={ActionRequestAction.ISOLATE_EU_REGION} label="Isolate EU Region" isTaken={state.regionIsolated} variant="outline" />
+                <ActionBtn id={ActionRequestAction.CHECK_CONFIGMAP} label="Inspect ConfigMap" isTaken={state.configMapChecked} variant="outline" urgent
+                  tooltip="Reads the payment-eu ConfigMap to verify PAYMENT_GATEWAY_URL — check carefully for whitespace or newlines in the value" />
+                <ActionBtn id={ActionRequestAction.ISOLATE_EU_REGION} label="Isolate EU Region" isTaken={state.regionIsolated} variant="outline"
+                  tooltip="Routes EU payment traffic to a holding page — prevents misleading errors while you fix the config root cause" />
               </>)}
             </div>
           </div>
 
-          {/* Diagnose — all scenarios */}
+          {/* Postmortem — all scenarios */}
           <div className="space-y-2">
-            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">Hypothesis</h3>
+            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">Postmortem</h3>
             <Button
               variant={state.diagnosisSubmitted ? "secondary" : "outline"}
               className={`w-full justify-start font-mono text-xs ${state.diagnosisSubmitted ? "opacity-50" : "ring-1 ring-primary/40"}`}
               disabled={state.diagnosisSubmitted || state.incidentClosed}
               onClick={() => setDiagnoseOpen(true)}
               data-testid="btn-diagnose"
+              title="Document your root cause hypothesis — identify the failure category, specific trigger, and blast radius"
             >
               {state.diagnosisSubmitted ? (
                 <><CheckCircle2 className="w-3 h-3 mr-2" /> Hypothesis Filed ({state.diagnosisScore}/18)</>
@@ -872,37 +850,14 @@ function ActionPanel({ state }: { state: SimulatorState }) {
             </Button>
           </div>
 
-          {/* Recovery — modal-driven */}
-          <div className="space-y-2">
-            <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">Recovery</h3>
-            <Button
-              variant={state.recoveryCompleted ? "secondary" : "default"}
-              className={`w-full justify-start font-mono text-xs ${state.recoveryCompleted ? "opacity-50" : "ring-1 ring-primary/60"}`}
-              disabled={state.recoveryCompleted || state.incidentClosed}
-              onClick={() => setRecoverOpen(true)}
-              data-testid="btn-recover"
-            >
-              {state.recoveryCompleted ? (
-                <><CheckCircle2 className="w-3 h-3 mr-2" /> Recovery Executed</>
-              ) : (
-                <><ChevronRight className="w-3 h-3 mr-2" /> Choose Recovery Strategy…</>
-              )}
-            </Button>
-            {/* Legacy maint_bot direct actions */}
-            {scenarioId === "maint_bot" && !state.recoveryCompleted && (
-              <div className="flex flex-col gap-1 mt-1">
-                <ActionBtn id={ActionRequestAction.RESTORE_LATEST_BACKUP} label="⚠ Restore Latest Backup" isTaken={state.latestBackupRestored} variant="destructive" />
-                <ActionBtn id={ActionRequestAction.PROMOTE_REPLICA_1} label="⚠ Promote Replica-1" isTaken={state.replica1Promoted} variant="outline" />
-              </div>
-            )}
-          </div>
-
           {/* Communication — all scenarios */}
           <div className="space-y-2">
             <h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest border-b border-border pb-1">Communication</h3>
             <div className="grid grid-cols-2 gap-2">
-              <ActionBtn id={ActionRequestAction.PUBLISH_STATUS_UPDATE} label="Publish Status" isTaken={state.statusPublished} variant="outline" />
-              <ActionBtn id={ActionRequestAction.CLOSE_INCIDENT} label="Close Incident" isTaken={state.incidentClosed} variant="default" />
+              <ActionBtn id={ActionRequestAction.PUBLISH_STATUS_UPDATE} label="Publish Status" isTaken={state.statusPublished} variant="outline"
+                tooltip="Publishes a customer-facing status update — post after root cause is known for the highest communication score" />
+              <ActionBtn id={ActionRequestAction.CLOSE_INCIDENT} label="Close Incident" isTaken={state.incidentClosed} variant="default"
+                tooltip="Marks the incident as resolved and generates an after-action report. Ensure recovery is complete before closing." />
             </div>
           </div>
 
@@ -937,7 +892,7 @@ function ScorePanel({ score, totalScore }: { score: ScoreBreakdown; totalScore: 
         <ScoreRow label="Diagnosis" value={score.diagnosis} max={20} />
         <ScoreRow label="AI Delegation" value={score.aiDelegation} max={20} />
         <ScoreRow label="Op Safety" value={score.operationalSafety} max={20} />
-        <ScoreRow label="Recovery" value={score.recovery} max={20} />
+        <ScoreRow label="Speed" value={score.recovery} max={20} />
         <ScoreRow label="Communication" value={score.communication} max={10} />
         <ScoreRow label="Prevention" value={score.prevention} max={10} />
       </CardContent>
@@ -985,17 +940,26 @@ export default function SimulatorPage() {
   const queryClient = useQueryClient();
   const [sessionKey, setSessionKey] = useState(0);
   const [debriefDismissed, setDebriefDismissed] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const { companyName, companySlug, cosUrl, brand } = useBranding();
 
   const { data: state, isLoading } = useGetSimulatorState({
     query: { refetchInterval: 3000, queryKey: getGetSimulatorStateQueryKey() }
   });
 
+  useEffect(() => {
+    if (!state?.scenarioSelected) return;
+    setElapsedSeconds(0);
+    const id = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [state?.scenarioSelected, state?.scenarioId, sessionKey]);
+
   const resetSimulator = useResetSimulator();
   const handleReset = () => {
     resetSimulator.mutate(undefined, {
       onSuccess: () => {
         setSessionKey((k) => k + 1);
+        setElapsedSeconds(0);
         setDebriefDismissed(false);
         queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
       }
@@ -1007,6 +971,9 @@ export default function SimulatorPage() {
   }
 
   const scenarioMeta = SCENARIO_META[state.scenarioId];
+  const displayTime = state.scenarioSelected
+    ? addSecondsToTime(state.time, elapsedSeconds)
+    : state.time;
 
   return (
     <div className="h-screen w-full flex flex-col bg-background text-foreground overflow-hidden font-sans">
@@ -1015,6 +982,7 @@ export default function SimulatorPage() {
         isOpen={!state.scenarioSelected}
         onSelect={() => {
           setSessionKey(k => k + 1);
+          setElapsedSeconds(0);
           queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
         }}
       />
@@ -1025,7 +993,7 @@ export default function SimulatorPage() {
           <Activity className="w-5 h-5 text-primary" />
           <h1 className="font-bold tracking-tight text-lg">{companyName} Incident Response Simulator</h1>
           <Badge variant="outline" className="font-mono text-sm border-primary text-primary bg-primary/10">
-            {state.time}
+            {displayTime}
           </Badge>
           {scenarioMeta && (
             <Badge variant="outline" className="font-mono text-xs border-border text-muted-foreground hidden lg:flex">
@@ -1055,12 +1023,11 @@ export default function SimulatorPage() {
 
       {/* Main Layout */}
       <div className="flex-1 grid grid-cols-12 gap-4 p-4 min-h-0">
-        <div className="col-span-4 flex flex-col gap-4 min-h-0">
+        <div className="col-span-4 flex flex-col min-h-0">
           <IncidentFeed feed={state.feed} brand={brand} />
-          <TerminalConsole key={sessionKey} companySlug={companySlug} />
         </div>
         <div className="col-span-4 flex flex-col min-h-0">
-          <AIAgentPanel key={sessionKey} />
+          <CombinedPanel companySlug={companySlug} sessionKey={sessionKey} />
         </div>
         <div className="col-span-4 flex flex-col gap-4 min-h-0">
           <ActionPanel state={state} />

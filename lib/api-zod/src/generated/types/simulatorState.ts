@@ -12,6 +12,7 @@ export interface SimulatorState {
   time: string;
   scenarioId: string;
   scenarioSelected: boolean;
+  scenarioStartedAt: number;
   diagnosisSubmitted: boolean;
   diagnosisScore: number;
   recoveryCompleted: boolean;

@@ -225,8 +225,8 @@ const ACTION_HANDLERS: Record<string, () => ActionResult> = {
       s.configMapChecked = true;
       s.rootCauseDiscovered = true;
       s.score.diagnosis = Math.min(20, s.score.diagnosis + 8);
-      addFeedEvent(makeEvent(now(), "Kubernetes", "payment-eu ConfigMap: PAYMENT_GATEWAY_URL = na-gateway.stripe-taskforge.io — WRONG. Last updated by Terraform at 09:14:02Z.", "bad"));
-      message = "Root cause confirmed: EU payment-service is pointing at the NA gateway. EU accounts cannot route via NA gateway — hence 402 on every charge.";
+      addFeedEvent(makeEvent(now(), "Kubernetes", "payment-eu ConfigMap: PAYMENT_GATEWAY_URL contains leading whitespace/newline from Terraform heredoc — go-http rejects as invalid URI. Last applied 09:14:02Z.", "bad"));
+      message = "Root cause confirmed: PAYMENT_GATEWAY_URL value is malformed — Terraform heredoc without trimspace() left leading whitespace. Go-http rejects as invalid URI before reaching Stripe.";
     });
     return { message, severity, state };
   },
@@ -328,13 +328,12 @@ function generateDebrief(s: SimulatorState): string {
 
   lines.push("");
   lines.push("Recovery:");
-  if (s.recoveryCompleted && s.recoveryChoice) {
-    const opt = scenario?.recoveryOptions.find(r => r.id === s.recoveryChoice);
-    lines.push(`Strategy chosen: "${opt?.label ?? s.recoveryChoice}". ${opt?.points && opt.points > 0 ? "Good call." : "This had negative consequences — review the reasoning."}`);
+  if (s.recoveryCompleted) {
+    lines.push(`Resolved via terminal command. Recovery score: ${s.score.recovery}/20.`);
   } else if (s.verifiedBackupRestored) {
     lines.push("You restored from the last verified backup. Correct approach for this scenario.");
   } else {
-    lines.push("No recovery action was completed.");
+    lines.push("No recovery command was executed.");
   }
 
   lines.push("");
