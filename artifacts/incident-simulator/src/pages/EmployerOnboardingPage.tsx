@@ -15,7 +15,6 @@ const STEPS = [
   { id: "role", label: "the role" },
   { id: "context", label: "the work" },
   { id: "skills", label: "the skills" },
-  { id: "ai", label: "ai fluency" },
 ] as const;
 
 type RolePreset = {
@@ -169,7 +168,6 @@ export default function EmployerOnboardingPage() {
   const [company, setCompany] = useState("");
   const [roleContext, setRoleContext] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
-  const [aiExpectations, setAiExpectations] = useState("");
 
   const activePreset: RolePreset | null = useMemo(() => {
     if (!selectedRoleId) return null;
@@ -237,7 +235,7 @@ export default function EmployerOnboardingPage() {
         company: company.trim() || "Your company",
         roleContext: roleContext.trim(),
         skills,
-        aiExpectations: aiExpectations.trim(),
+        aiExpectations: "",
       }),
     );
     navigate("/employer/constellation");
@@ -322,12 +320,6 @@ export default function EmployerOnboardingPage() {
                     suggestions={
                       (activePreset ?? CUSTOM_PRESET).suggestedSkills
                     }
-                  />
-                )}
-                {step === 3 && (
-                  <AIStep
-                    value={aiExpectations}
-                    onChange={setAiExpectations}
                   />
                 )}
               </motion.div>
@@ -915,41 +907,6 @@ function SkillsPicker({
         </div>
       )}
     </div>
-  );
-}
-
-function AIStep({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (s: string) => void;
-}) {
-  return (
-    <>
-      <StepHeader
-        index={3}
-        question={
-          <>
-            How should they work with <em style={{ color: ACCENT, fontStyle: "italic" }}>AI?</em>
-          </>
-        }
-        intent="Optional. What does fluency look like in this role — when do they reach for it, and when do they override it?"
-      />
-      <div className="mt-9">
-        <CardTextarea
-          label="AI fluency"
-          value={value}
-          onChange={onChange}
-          placeholder="Uses AI to accelerate first drafts but knows when to override it. Can evaluate AI output critically and explain why a suggestion is wrong."
-          maxLength={400}
-          rows={3}
-          autoFocus
-          enableMic
-        />
-        <Meta right={`${value.length} / 400`} />
-      </div>
-    </>
   );
 }
 
