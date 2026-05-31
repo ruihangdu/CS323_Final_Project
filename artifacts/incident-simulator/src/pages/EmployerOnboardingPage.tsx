@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import { ArrowRight, ArrowLeft, Plus, X, Sparkles, Mic, ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -42,6 +43,22 @@ const ROLE_PRESETS: RolePreset[] = [
     ],
   },
   {
+    id: "chief_of_staff",
+    label: "Chief of Staff",
+    contextPlaceholder:
+      "They'll triage incoming priorities for the CEO, manage cross-team initiatives, draft communications that thread the needle on sensitive topics, and operate with high context across product, ops, and people.",
+    suggestedSkills: [
+      "Triage under ambiguity",
+      "Executive communication",
+      "Cross-functional orchestration",
+      "Crisis judgment",
+      "Stakeholder management",
+      "Strategic synthesis",
+      "Discreet handling",
+      "Operating cadence",
+    ],
+  },
+  {
     id: "product_designer",
     label: "Senior Product Designer",
     contextPlaceholder:
@@ -71,22 +88,6 @@ const ROLE_PRESETS: RolePreset[] = [
       "AI-assisted roadmapping",
       "Saying no",
       "Hypothesis design",
-    ],
-  },
-  {
-    id: "chief_of_staff",
-    label: "Chief of Staff",
-    contextPlaceholder:
-      "They'll triage incoming priorities for the CEO, manage cross-team initiatives, draft communications that thread the needle on sensitive topics, and operate with high context across product, ops, and people.",
-    suggestedSkills: [
-      "Triage under ambiguity",
-      "Executive communication",
-      "Cross-functional orchestration",
-      "Crisis judgment",
-      "Stakeholder management",
-      "Strategic synthesis",
-      "Discreet handling",
-      "Operating cadence",
     ],
   },
   {
@@ -633,6 +634,32 @@ function SkillsStep({
   );
 }
 
+function useFloatingRect(open: boolean, triggerRef: React.RefObject<HTMLElement | null>) {
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setRect(null);
+      return;
+    }
+    function update() {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.bottom + 8, left: r.left, width: r.width });
+    }
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open, triggerRef]);
+
+  return rect;
+}
+
 function RoleSelect({
   value,
   onChange,
@@ -645,15 +672,18 @@ function RoleSelect({
   placeholder: string;
 }) {
   const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const current = options.find((o) => o.id === value);
+  const rect = useFloatingRect(open, triggerRef);
 
   useEffect(() => {
     if (!open) return;
     function onDoc(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t)) return;
+      if (panelRef.current?.contains(t)) return;
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -667,7 +697,7 @@ function RoleSelect({
   }, [open]);
 
   return (
-    <div ref={wrapRef} className="relative">
+    <div className="relative">
       <div
         className="text-[10.5px] tracking-[0.22em] uppercase mb-2.5"
         style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
@@ -675,6 +705,7 @@ function RoleSelect({
         Role
       </div>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between gap-3 pb-2 text-left text-[18px] transition-colors"
@@ -695,57 +726,67 @@ function RoleSelect({
           }}
         />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.16 }}
-            className="absolute left-0 right-0 top-full mt-2 z-30 overflow-hidden rounded-lg"
-            style={{
-              background: "rgba(20,22,28,0.96)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
-              border: "1px solid rgba(237,230,210,0.12)",
-              boxShadow:
-                "0 20px 40px -16px rgba(0,0,0,0.7), 0 8px 20px -8px rgba(0,0,0,0.5)",
-            }}
-          >
-            {options.map((opt) => {
-              const active = opt.id === value;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => {
-                    onChange(opt.id);
-                    setOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-[15px] transition-colors hover:bg-white/[0.04]"
-                  style={{
-                    color: active ? ACCENT : CREAM,
-                    fontFamily:
-                      opt.id === "custom"
-                        ? "'Space Mono', monospace"
-                        : "Inter, system-ui, sans-serif",
-                    fontSize: opt.id === "custom" ? "12.5px" : "15px",
-                    letterSpacing: opt.id === "custom" ? "0.04em" : undefined,
-                    fontStyle: opt.id === "custom" ? "normal" : undefined,
-                    borderTop:
-                      opt.id === "custom"
-                        ? "1px solid rgba(237,230,210,0.10)"
-                        : "none",
-                  }}
-                >
-                  <span>{opt.label}</span>
-                  {active && <Check className="w-3.5 h-3.5" />}
-                </button>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {createPortal(
+        <AnimatePresence>
+          {open && rect && (
+            <motion.div
+              ref={panelRef}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.16 }}
+              className="overflow-hidden rounded-lg"
+              style={{
+                position: "fixed",
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                zIndex: 100,
+                background: "rgba(20,22,28,0.96)",
+                backdropFilter: "blur(24px)",
+                WebkitBackdropFilter: "blur(24px)",
+                border: "1px solid rgba(237,230,210,0.12)",
+                boxShadow:
+                  "0 20px 40px -16px rgba(0,0,0,0.7), 0 8px 20px -8px rgba(0,0,0,0.5)",
+              }}
+            >
+              {options.map((opt) => {
+                const active = opt.id === value;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.id);
+                      setOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-[15px] transition-colors hover:bg-white/[0.04]"
+                    style={{
+                      color: active ? ACCENT : CREAM,
+                      fontFamily:
+                        opt.id === "custom"
+                          ? "'Space Mono', monospace"
+                          : "Inter, system-ui, sans-serif",
+                      fontSize: opt.id === "custom" ? "12.5px" : "15px",
+                      letterSpacing:
+                        opt.id === "custom" ? "0.04em" : undefined,
+                      fontStyle: opt.id === "custom" ? "normal" : undefined,
+                      borderTop:
+                        opt.id === "custom"
+                          ? "1px solid rgba(237,230,210,0.10)"
+                          : "none",
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                    {active && <Check className="w-3.5 h-3.5" />}
+                  </button>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -768,8 +809,10 @@ function SkillsPicker({
   const [open, setOpen] = useState(false);
   const [customMode, setCustomMode] = useState(false);
   const [customText, setCustomText] = useState("");
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
+  const rect = useFloatingRect(open, triggerRef);
 
   const remaining = suggestions.filter((s) => !selected.includes(s));
   const atMax = selected.length >= max;
@@ -781,9 +824,10 @@ function SkillsPicker({
       return;
     }
     function onDoc(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t)) return;
+      if (panelRef.current?.contains(t)) return;
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setOpen(false);
@@ -810,7 +854,7 @@ function SkillsPicker({
   }
 
   return (
-    <div ref={wrapRef}>
+    <div>
       <div
         className="text-[10.5px] tracking-[0.22em] uppercase mb-3"
         style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
@@ -850,8 +894,9 @@ function SkillsPicker({
           ))}
         </AnimatePresence>
 
-        <div className="relative">
+        <div>
           <button
+            ref={triggerRef}
             type="button"
             onClick={() => !atMax && setOpen((o) => !o)}
             disabled={atMax}
@@ -872,23 +917,30 @@ function SkillsPicker({
               style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
             />
           </button>
-          <AnimatePresence>
-            {open && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.16 }}
-                className="absolute left-0 top-full mt-2 z-30 overflow-hidden rounded-lg w-[300px]"
-                style={{
-                  background: "rgba(20,22,28,0.96)",
-                  backdropFilter: "blur(24px)",
-                  WebkitBackdropFilter: "blur(24px)",
-                  border: "1px solid rgba(237,230,210,0.12)",
-                  boxShadow:
-                    "0 20px 40px -16px rgba(0,0,0,0.7), 0 8px 20px -8px rgba(0,0,0,0.5)",
-                }}
-              >
+          {createPortal(
+            <AnimatePresence>
+              {open && rect && (
+                <motion.div
+                  ref={panelRef}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.16 }}
+                  className="overflow-hidden rounded-lg"
+                  style={{
+                    position: "fixed",
+                    top: rect.top,
+                    left: rect.left,
+                    width: 300,
+                    zIndex: 100,
+                    background: "rgba(20,22,28,0.96)",
+                    backdropFilter: "blur(24px)",
+                    WebkitBackdropFilter: "blur(24px)",
+                    border: "1px solid rgba(237,230,210,0.12)",
+                    boxShadow:
+                      "0 20px 40px -16px rgba(0,0,0,0.7), 0 8px 20px -8px rgba(0,0,0,0.5)",
+                  }}
+                >
                 <div className="max-h-[280px] overflow-y-auto">
                   {remaining.length === 0 && !customMode && (
                     <div
@@ -973,7 +1025,9 @@ function SkillsPicker({
                 </div>
               </motion.div>
             )}
-          </AnimatePresence>
+          </AnimatePresence>,
+            document.body,
+          )}
         </div>
       </div>
 

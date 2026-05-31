@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowLeft, ArrowRight, Sparkles, Check, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  SCENARIO_META,
+  PENDING_SCENARIO_KEY,
+  pickRecommendedScenario,
+  scoreScenario,
+  type EmployerProfile,
+} from "@/lib/scenarios";
 
 const STORAGE_KEY = "employer.profile";
 
@@ -109,10 +116,13 @@ function buildNodes(profile: Profile): ConstellationNode[] {
   ];
 }
 
+type Phase = "idle" | "loading" | "picking";
+
 export default function ConstellationPage() {
   usePreloadFonts();
   const [, navigate] = useLocation();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [phase, setPhase] = useState<Phase>("idle");
 
   useEffect(() => {
     try {
@@ -502,7 +512,7 @@ export default function ConstellationPage() {
             </p>
             <button
               type="button"
-              onClick={() => navigate("/sim")}
+              onClick={() => setPhase("loading")}
               className="group inline-flex items-center gap-2.5 pl-4 pr-2.5 py-2 transition-all shrink-0"
               style={{
                 background: ACCENT,
@@ -528,6 +538,35 @@ export default function ConstellationPage() {
           </div>
         </motion.div>
       </div>
+
+      <AnimatePresence mode="wait">
+        {phase === "loading" && (
+          <GeneratingOverlay
+            key="loading"
+            profile={profile}
+            onDone={() => {
+              // Chief of Staff role uses a completely different simulator
+              // (Creator HQ crisis management), so route there directly and
+              // skip the incident picker — there's nothing to pick from.
+              if (profile?.roleTitle === "Chief of Staff") {
+                window.location.href = "/cos-simulator/";
+              } else {
+                setPhase("picking");
+              }
+            }}
+          />
+        )}
+        {phase === "picking" && (
+          <PickerOverlay
+            key="picking"
+            profile={profile}
+            onLaunch={(scenarioId) => {
+              sessionStorage.setItem(PENDING_SCENARIO_KEY, scenarioId);
+              navigate("/sim");
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -647,5 +686,520 @@ function NodeRow({
         {palette.label}
       </span>
     </motion.div>
+  );
+}
+
+// ── Generating overlay ──────────────────────────────────────────────────
+
+type Step = {
+  id: string;
+  label: (p: Profile) => string;
+  duration: number;
+};
+
+const GENERATING_STEPS: Step[] = [
+  {
+    id: "read",
+    label: (p) => `Reading role profile · ${p.roleTitle}`,
+    duration: 600,
+  },
+  {
+    id: "map",
+    label: (p) =>
+      `Mapping ${p.skills.length} skill${p.skills.length === 1 ? "" : "s"} onto incident vectors`,
+    duration: 800,
+  },
+  {
+    id: "focus",
+    label: (p) =>
+      `Setting primary probe · ${p.skills[0] ?? "judgment under ambiguity"}`,
+    duration: 750,
+  },
+  {
+    id: "select",
+    label: () => "Searching scenario library",
+    duration: 850,
+  },
+  {
+    id: "calibrate",
+    label: () => "Calibrating difficulty curve",
+    duration: 700,
+  },
+  {
+    id: "compile",
+    label: () => "Stitching the narrative",
+    duration: 1000,
+  },
+];
+
+function GeneratingOverlay({
+  profile,
+  onDone,
+}: {
+  profile: Profile | null;
+  onDone: () => void;
+}) {
+  const [completed, setCompleted] = useState(0);
+
+  useEffect(() => {
+    if (completed >= GENERATING_STEPS.length) {
+      const t = setTimeout(onDone, 900);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(
+      () => setCompleted((c) => c + 1),
+      GENERATING_STEPS[completed].duration,
+    );
+    return () => clearTimeout(t);
+  }, [completed, onDone]);
+
+  const allDone = completed >= GENERATING_STEPS.length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 z-50 flex items-center justify-center px-6"
+      style={{
+        background: "rgba(10,12,17,0.92)",
+        backdropFilter: "blur(28px)",
+        WebkitBackdropFilter: "blur(28px)",
+      }}
+    >
+      <div className="w-full max-w-[560px]">
+        <div
+          className="text-[10.5px] tracking-[0.22em] uppercase mb-7 flex items-center gap-3"
+          style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: ACCENT, boxShadow: `0 0 10px ${ACCENT}` }}
+          />
+          Arena · compiling test
+        </div>
+
+        <h2
+          className="leading-[1.04]"
+          style={{
+            fontFamily: "'Instrument Serif', Georgia, serif",
+            fontSize: "42px",
+            fontWeight: 400,
+            color: CREAM,
+            letterSpacing: "-0.012em",
+          }}
+        >
+          Building a test for your{" "}
+          <em style={{ color: ACCENT, fontStyle: "italic" }}>candidate</em>
+        </h2>
+
+        {profile && (
+          <p
+            className="mt-3 max-w-[440px]"
+            style={{
+              fontFamily: "'Instrument Serif', Georgia, serif",
+              fontStyle: "italic",
+              fontSize: "17px",
+              color: CREAM_DIM,
+              lineHeight: 1.5,
+            }}
+          >
+            Calibrated for a{" "}
+            {profile.roleTitle.toLowerCase()} — {profile.skills.length} skill
+            {profile.skills.length === 1 ? "" : "s"} mapped.
+          </p>
+        )}
+
+        <div className="mt-10 flex flex-col gap-3.5">
+          {GENERATING_STEPS.map((step, i) => {
+            const isDone = i < completed;
+            const isCurrent = i === completed && !allDone;
+            if (!isDone && !isCurrent) return null;
+            return (
+              <motion.div
+                key={step.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                className="flex items-center gap-3 text-[13.5px]"
+                style={{ fontFamily: "'Space Mono', monospace" }}
+              >
+                {isDone ? (
+                  <Check
+                    className="w-3.5 h-3.5 shrink-0"
+                    style={{ color: ACCENT }}
+                  />
+                ) : (
+                  <Loader2
+                    className="w-3.5 h-3.5 animate-spin shrink-0"
+                    style={{ color: CREAM_DIM }}
+                  />
+                )}
+                <span
+                  style={{
+                    color: isDone ? CREAM : CREAM_DIM,
+                    transition: "color 200ms",
+                  }}
+                >
+                  {profile ? step.label(profile) : step.id}
+                  {!isDone && <span className="opacity-60">…</span>}
+                </span>
+              </motion.div>
+            );
+          })}
+
+          {allDone && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.15 }}
+              className="flex items-center gap-3 text-[13.5px] mt-3 pt-4"
+              style={{
+                fontFamily: "'Space Mono', monospace",
+                borderTop: "1px dashed rgba(237,230,210,0.18)",
+              }}
+            >
+              <ArrowRight className="w-3.5 h-3.5" style={{ color: ACCENT }} />
+              <span style={{ color: ACCENT, letterSpacing: "0.02em" }}>
+                Continuing to incident briefing
+              </span>
+            </motion.div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Picker overlay (Arena-styled) ────────────────────────────────────────
+
+const DIFFICULTY_CHIP: Record<string, { bg: string; fg: string; border: string }> = {
+  MEDIUM: {
+    bg: "rgba(224,135,99,0.12)",
+    fg: "#E0A887",
+    border: "rgba(224,135,99,0.45)",
+  },
+  HARD: {
+    bg: "rgba(224,98,76,0.16)",
+    fg: "#E78568",
+    border: "rgba(224,98,76,0.55)",
+  },
+  EXPERT: {
+    bg: "rgba(220,72,72,0.18)",
+    fg: "#E47A7A",
+    border: "rgba(220,72,72,0.55)",
+  },
+};
+
+function PickerOverlay({
+  profile,
+  onLaunch,
+}: {
+  profile: Profile | null;
+  onLaunch: (scenarioId: string) => void;
+}) {
+  const recommendedId = useMemo(
+    () => pickRecommendedScenario(profile as EmployerProfile | null),
+    [profile],
+  );
+  const recommended = SCENARIO_META[recommendedId] ?? SCENARIO_META.maint_bot;
+  const others = useMemo(
+    () =>
+      Object.values(SCENARIO_META).filter((s) => s.id !== recommended.id),
+    [recommended.id],
+  );
+  const recommendedMatch = useMemo(
+    () => scoreScenario(recommendedId, profile as EmployerProfile | null),
+    [recommendedId, profile],
+  );
+
+  const [selectedId, setSelectedId] = useState<string>(recommended.id);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.35 }}
+      className="fixed inset-0 z-50 flex items-center justify-center px-6 py-10 overflow-y-auto"
+      style={{
+        background: "rgba(10,12,17,0.94)",
+        backdropFilter: "blur(28px)",
+        WebkitBackdropFilter: "blur(28px)",
+      }}
+    >
+      <div className="w-full max-w-[640px]">
+        <div
+          className="text-[10.5px] tracking-[0.22em] uppercase mb-5 flex items-center gap-3"
+          style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
+        >
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ background: ACCENT, boxShadow: `0 0 10px ${ACCENT}` }}
+          />
+          Arena · incident briefing
+        </div>
+
+        <h2
+          className="leading-[1.04]"
+          style={{
+            fontFamily: "'Instrument Serif', Georgia, serif",
+            fontSize: "42px",
+            fontWeight: 400,
+            color: CREAM,
+            letterSpacing: "-0.012em",
+          }}
+        >
+          Your <em style={{ color: ACCENT, fontStyle: "italic" }}>incident</em> is ready
+        </h2>
+        {profile && (
+          <p
+            className="mt-3 max-w-[480px]"
+            style={{
+              fontFamily: "'Instrument Serif', Georgia, serif",
+              fontStyle: "italic",
+              fontSize: "17px",
+              color: CREAM_DIM,
+              lineHeight: 1.5,
+            }}
+          >
+            Built from what you told us about your {profile.roleTitle.toLowerCase()}.
+          </p>
+        )}
+
+        {/* Hero recommended card */}
+        <motion.button
+          type="button"
+          onClick={() => setSelectedId(recommended.id)}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          className="block w-full text-left mt-8 p-6 rounded-2xl transition-all"
+          style={{
+            background:
+              selectedId === recommended.id
+                ? "rgba(224,135,99,0.06)"
+                : "rgba(20,22,28,0.65)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border:
+              selectedId === recommended.id
+                ? `1px solid ${ACCENT}`
+                : "1px solid rgba(237,230,210,0.10)",
+            boxShadow:
+              selectedId === recommended.id
+                ? `0 0 0 1px ${ACCENT}, 0 24px 60px -24px rgba(224,135,99,0.35), 0 12px 32px -16px rgba(0,0,0,0.4)`
+                : "0 12px 32px -16px rgba(0,0,0,0.5)",
+          }}
+        >
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <span
+              className="inline-flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase"
+              style={{ color: ACCENT, fontFamily: "'Space Mono', monospace" }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{ background: ACCENT }}
+              />
+              {profile
+                ? `Custom-built for your ${profile.roleTitle.toLowerCase()}`
+                : "Recommended"}
+            </span>
+            <DifficultyChip difficulty={recommended.difficulty} />
+          </div>
+          <div
+            style={{
+              fontFamily: "'Instrument Serif', Georgia, serif",
+              fontSize: "30px",
+              fontWeight: 400,
+              color: CREAM,
+              letterSpacing: "-0.01em",
+              lineHeight: 1.1,
+            }}
+          >
+            {recommended.name}
+          </div>
+          <p
+            className="text-[14px] mt-2"
+            style={{
+              color: CREAM_DIM,
+              fontFamily: "Inter, system-ui, sans-serif",
+            }}
+          >
+            {recommended.subtitle}
+          </p>
+          <p
+            className="text-[13.5px] mt-4 leading-relaxed"
+            style={{
+              color: CREAM_DIM,
+              fontFamily: "Inter, system-ui, sans-serif",
+            }}
+          >
+            {recommended.synopsis}
+          </p>
+          {recommendedMatch.matchedSkills.length > 0 && (
+            <div
+              className="mt-5 pt-4"
+              style={{
+                borderTop: "1px dashed rgba(237,230,210,0.18)",
+              }}
+            >
+              <div
+                className="text-[9.5px] tracking-[0.22em] uppercase mb-2"
+                style={{
+                  color: CREAM_VDIM,
+                  fontFamily: "'Space Mono', monospace",
+                }}
+              >
+                Probes your focus on
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {recommendedMatch.matchedSkills.slice(0, 4).map((skill) => (
+                  <span
+                    key={skill}
+                    className="inline-flex items-center px-2.5 py-1 text-[11px]"
+                    style={{
+                      border: `1px dashed ${ACCENT}66`,
+                      color: CREAM,
+                      fontFamily: "'Space Mono', monospace",
+                      borderRadius: 999,
+                      background: "rgba(224,135,99,0.08)",
+                    }}
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </motion.button>
+
+        {/* Alternates */}
+        <div className="mt-7">
+          <div
+            className="text-[10px] tracking-[0.22em] uppercase mb-3"
+            style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
+          >
+            Or pick a different incident
+          </div>
+          <div className="flex flex-col gap-2">
+            {others.map((sc, i) => {
+              const isSelected = selectedId === sc.id;
+              return (
+                <motion.button
+                  key={sc.id}
+                  type="button"
+                  onClick={() => setSelectedId(sc.id)}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.4,
+                    delay: 0.35 + i * 0.08,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between gap-4"
+                  style={{
+                    background: isSelected
+                      ? "rgba(224,135,99,0.06)"
+                      : "rgba(20,22,28,0.55)",
+                    border: isSelected
+                      ? `1px solid ${ACCENT}`
+                      : "1px solid rgba(237,230,210,0.08)",
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                  }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="truncate"
+                      style={{
+                        fontFamily: "'Instrument Serif', Georgia, serif",
+                        fontSize: "18px",
+                        color: CREAM,
+                        letterSpacing: "-0.005em",
+                      }}
+                    >
+                      {sc.name}
+                    </div>
+                    <div
+                      className="text-[12.5px] mt-0.5 truncate"
+                      style={{
+                        color: CREAM_DIM,
+                        fontFamily: "Inter, system-ui, sans-serif",
+                      }}
+                    >
+                      {sc.subtitle}
+                    </div>
+                  </div>
+                  <DifficultyChip difficulty={sc.difficulty} />
+                </motion.button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.7 }}
+          className="mt-8 pt-5 flex items-center justify-between gap-4"
+          style={{ borderTop: "1px dashed rgba(237,230,210,0.18)" }}
+        >
+          <span
+            className="text-[10.5px] tracking-[0.22em] uppercase"
+            style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
+          >
+            {selectedId === recommended.id
+              ? "Custom-built selection"
+              : "Alternate selection"}
+          </span>
+          <button
+            type="button"
+            onClick={() => onLaunch(selectedId)}
+            className="group inline-flex items-center gap-3 pl-5 pr-3 py-2.5 transition-all"
+            style={{
+              background: ACCENT,
+              color: SKY,
+              border: `1px solid ${ACCENT}`,
+              fontFamily: "'Space Mono', monospace",
+              fontSize: "11.5px",
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              borderRadius: 999,
+              boxShadow: `0 12px 32px -12px ${ACCENT}`,
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Launch incident
+            <span
+              className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-transform group-hover:translate-x-0.5"
+              style={{ background: SKY, color: ACCENT }}
+            >
+              <ArrowRight className="w-3 h-3" />
+            </span>
+          </button>
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
+function DifficultyChip({ difficulty }: { difficulty: string }) {
+  const c = DIFFICULTY_CHIP[difficulty] ?? DIFFICULTY_CHIP.MEDIUM;
+  return (
+    <span
+      className="text-[9.5px] tracking-[0.22em] uppercase px-2 py-0.5 shrink-0"
+      style={{
+        background: c.bg,
+        color: c.fg,
+        border: `1px solid ${c.border}`,
+        fontFamily: "'Space Mono', monospace",
+        borderRadius: 4,
+      }}
+    >
+      {difficulty}
+    </span>
   );
 }

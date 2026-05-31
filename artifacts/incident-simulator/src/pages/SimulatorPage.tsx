@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Terminal, CheckCircle2, RotateCcw, Send, Activity,
@@ -29,6 +29,10 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  SCENARIO_META as SHARED_SCENARIO_META,
+  PENDING_SCENARIO_KEY,
+} from "@/lib/scenarios";
 
 const FONT_URLS: Record<string, string> = {
   dev: "https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap",
@@ -74,49 +78,8 @@ function addSecondsToTime(base: string, secs: number): string {
   return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
 }
 
-// ── Scenario Definitions (mirrors backend) ─────────────────────────────────
-
-const SCENARIO_META: Record<string, {
-  id: SelectScenarioBodyScenarioId;
-  name: string;
-  subtitle: string;
-  difficulty: "MEDIUM" | "HARD" | "EXPERT";
-  synopsis: string;
-  color: string;
-}> = {
-  maint_bot: {
-    id: SelectScenarioBodyScenarioId.maint_bot,
-    name: "The Maint Bot Disaster",
-    subtitle: "Production DB wiped by a rogue automation script",
-    difficulty: "HARD",
-    synopsis: "02:14 UTC — API 500 rate at 35% and climbing. Primary DB disk shed 79% of its data in 14 seconds. Find out what ran. Stop it. Recover.",
-    color: "border-red-500/50",
-  },
-  bad_deploy: {
-    id: SelectScenarioBodyScenarioId.bad_deploy,
-    name: "Zero to 500",
-    subtitle: "A deploy with a missing migration is destroying your API",
-    difficulty: "MEDIUM",
-    synopsis: "14:32 UTC — v2.48.0 deployed. 3 minutes later, 67% of requests return 500. CI passed. Rollback or fix forward?",
-    color: "border-amber-500/50",
-  },
-  memory_siege: {
-    id: SelectScenarioBodyScenarioId.memory_siege,
-    name: "Death by a Thousand Leaks",
-    subtitle: "OOM kills across your task-processor fleet",
-    difficulty: "HARD",
-    synopsis: "03:14 UTC — task-processor pods dying one by one. Memory climbing without end. Something in a recent PR introduced an unbounded cache. Find it.",
-    color: "border-orange-500/50",
-  },
-  config_catastrophe: {
-    id: SelectScenarioBodyScenarioId.config_catastrophe,
-    name: "Wrong Address",
-    subtitle: "EU payments down — a Terraform heredoc left malformed whitespace in a ConfigMap value",
-    difficulty: "MEDIUM",
-    synopsis: "09:15 UTC — EU customers can't complete checkout. NA is unaffected. No application code was deployed. The answer is in your infrastructure config — but it's subtler than it looks.",
-    color: "border-blue-500/50",
-  },
-};
+// ── Scenario metadata is shared with ConstellationPage's picker overlay ───
+const SCENARIO_META = SHARED_SCENARIO_META;
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   MEDIUM: "bg-amber-500/20 text-amber-500",
@@ -124,15 +87,42 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   EXPERT: "bg-red-500/20 text-red-500",
 };
 
+
 // ── Scenario Picker Modal ──────────────────────────────────────────────────
 
 function ScenarioPickerModal({ isOpen, onSelect }: {
   isOpen: boolean;
   onSelect: (id: SelectScenarioBodyScenarioId) => void;
 }) {
-  const [selected, setSelected] = useState<SelectScenarioBodyScenarioId | null>(null);
   const selectScenario = useSelectScenario();
   const queryClient = useQueryClient();
+  const [selected, setSelected] = useState<SelectScenarioBodyScenarioId | null>(null);
+  const [autoSelecting, setAutoSelecting] = useState(false);
+
+  // If the employer flow handed off a pre-chosen scenario, apply it
+  // immediately and skip the picker entirely.
+  useEffect(() => {
+    if (!isOpen || autoSelecting) return;
+    const pending = sessionStorage.getItem(PENDING_SCENARIO_KEY);
+    if (!pending) return;
+    setAutoSelecting(true);
+    selectScenario.mutate(
+      { data: { scenarioId: pending as SelectScenarioBodyScenarioId } },
+      {
+        onSuccess: () => {
+          sessionStorage.removeItem(PENDING_SCENARIO_KEY);
+          queryClient.invalidateQueries({ queryKey: getGetSimulatorStateQueryKey() });
+          onSelect(pending as SelectScenarioBodyScenarioId);
+        },
+        onError: () => {
+          // If the pre-chosen scenario fails, fall back to the manual picker
+          sessionStorage.removeItem(PENDING_SCENARIO_KEY);
+          setAutoSelecting(false);
+        },
+      },
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleConfirm = () => {
     if (!selected) return;
@@ -143,6 +133,10 @@ function ScenarioPickerModal({ isOpen, onSelect }: {
       },
     });
   };
+
+  // While auto-selecting, render nothing — the page-level INITIALIZING
+  // SYSTEM splash already covers the brief window.
+  if (autoSelecting) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -1260,10 +1254,6 @@ export default function SimulatorPage() {
           <Button variant="outline" size="sm" onClick={() => { window.location.href = "/"; }}
             className="font-mono text-xs border-border text-muted-foreground hover:text-foreground">
             <Settings className="w-3 h-3 mr-2" /> Configure
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => { window.location.href = cosUrl; }}
-            className="font-mono text-xs border-amber-500/50 text-amber-400 hover:bg-amber-500/10">
-            <TrendingUp className="w-3 h-3 mr-2" /> Chief of Staff Role
           </Button>
           <Button variant="outline" size="sm" onClick={handleReset} data-testid="btn-reset" className="font-mono text-xs">
             <RotateCcw className="w-3 h-3 mr-2" /> RESET
