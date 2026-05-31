@@ -1,5 +1,43 @@
-import { mutateState, getState, makeEvent } from "./state";
+import { mutateState, getState, makeEvent, addFeedEvent } from "./state";
 import { SCENARIOS } from "./scenarios";
+
+function now(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function checkRecoveryTrigger(command: string, scenarioId: string): void {
+  const s = getState();
+  if (s.recoveryCompleted || s.incidentClosed) return;
+  const scenario = SCENARIOS[scenarioId];
+  if (!scenario?.recoveryTriggers) return;
+
+  const cmd = command.toLowerCase();
+
+  for (const trigger of scenario.recoveryTriggers) {
+    const matched = trigger.patterns.every(p => cmd.includes(p.toLowerCase()));
+    if (!matched) continue;
+
+    const elapsedMs = s.scenarioStartedAt > 0 ? Date.now() - s.scenarioStartedAt : 300000;
+    const elapsedMin = elapsedMs / 60000;
+    const points = elapsedMin <= 5 ? 20
+      : elapsedMin <= 10 ? 15
+      : elapsedMin <= 15 ? 10
+      : elapsedMin <= 20 ? 5 : 2;
+
+    mutateState((st) => {
+      st.recoveryCompleted = true;
+      st.score.recovery = points;
+      if (trigger.preventionDelta) {
+        st.score.prevention = Math.max(0, Math.min(10, st.score.prevention + trigger.preventionDelta));
+      }
+      addFeedEvent(makeEvent(now(), "Recovery",
+        `${trigger.feedMessage} (resolved in ${Math.round(elapsedMin)} min — ${points}/20 pts)`,
+        trigger.feedType));
+    });
+    break;
+  }
+}
 
 const SHARED_COMMANDS: Record<string, () => string> = {
   help: () => {
@@ -92,6 +130,7 @@ export function handleCommand(command: string): string {
   const s = getState();
   const scenarioId = s.scenarioId;
 
+  checkRecoveryTrigger(trimmed, scenarioId);
   scoreCommandRun(trimmed, scenarioId);
 
   // Help is always available

@@ -17,6 +17,13 @@ export interface RecoveryOption {
   terminates?: boolean;
 }
 
+export interface RecoveryTrigger {
+  patterns: string[];
+  feedMessage: string;
+  feedType: FeedEvent["type"];
+  preventionDelta?: number;
+}
+
 export interface ScenarioDef {
   id: string;
   name: string;
@@ -35,6 +42,7 @@ export interface ScenarioDef {
     blastRadiusOptions: { id: string; label: string }[];
   };
   recoveryOptions: RecoveryOption[];
+  recoveryTriggers: RecoveryTrigger[];
 }
 
 export const SCENARIOS: Record<string, ScenarioDef> = {
@@ -195,6 +203,13 @@ CAUTION: Do NOT assume latest backup is valid. Check 'verified' flag and size.
         terminates: true,
       },
     ],
+    recoveryTriggers: [
+      {
+        patterns: ["pg_restore", "recovery_target_time"],
+        feedMessage: "DB restore initiated from verified backup + WAL replay. Core data recovering. Data loss window: 01:44–02:10 UTC.",
+        feedType: "good",
+      },
+    ],
   },
 
   bad_deploy: {
@@ -347,6 +362,18 @@ Check deploy.log — if migration ran, rolling back the code may break data inte
         points: -3,
         feedMessage: "Rolled back to v2.46.0. API recovered but 3 features from v2.47.1 regressed. Customer reports for missing features incoming. More change needed.",
         feedType: "warning",
+      },
+    ],
+    recoveryTriggers: [
+      {
+        patterns: ["v2.47.1"],
+        feedMessage: "Rollback to v2.47.1 complete. API 500 rate dropping: 67% → 12% → 0.3%. All pods healthy.",
+        feedType: "good",
+      },
+      {
+        patterns: ["rollout undo"],
+        feedMessage: "Rollback to v2.47.1 complete. API 500 rate dropping: 67% → 12% → 0.3%. All pods healthy.",
+        feedType: "good",
       },
     ],
   },
@@ -504,18 +531,30 @@ job.queue.depth: 42,000 jobs pending (normal: ~800)`,
         feedType: "bad",
       },
     ],
+    recoveryTriggers: [
+      {
+        patterns: ["v1.13.2"],
+        feedMessage: "task-processor rolled back to v1.13.2. Memory stable. Job queue draining.",
+        feedType: "good",
+      },
+      {
+        patterns: ["rollout undo deployment/task-processor"],
+        feedMessage: "task-processor rolled back to v1.13.2. Memory stable. Job queue draining.",
+        feedType: "good",
+      },
+    ],
   },
 
   config_catastrophe: {
     id: "config_catastrophe",
     name: "Wrong Address",
-    subtitle: "EU payments down — a Terraform apply pointed the wrong service at the wrong endpoint",
+    subtitle: "EU payments down — a Terraform heredoc left malformed whitespace in a ConfigMap value",
     difficulty: "MEDIUM",
-    synopsis: "09:15 UTC — EU customers can't complete checkout. NA region is unaffected. No code was deployed. What changed? The answer is in your infrastructure config.",
+    synopsis: "09:15 UTC — EU customers can't complete checkout. NA is unaffected. No application code was deployed. The answer is in your infrastructure config — but it's subtler than it looks.",
     initialTime: "09:18",
     initialFeed: [
       evt("09:14", "Terraform Cloud", "terraform apply completed — 2 resources updated in eu-west-1", "info"),
-      evt("09:15", "Monitoring", "EU payment-service: 402 error rate 98%", "critical"),
+      evt("09:15", "Monitoring", "EU payment-service: error rate 98%", "critical"),
       evt("09:16", "PagerDuty", "P1: EU checkout conversion rate 0%", "critical"),
       evt("09:17", "Support", "EU customers: 'Payment declined on all cards'", "bad"),
       evt("09:18", "Monitoring", "NA region: payment-service healthy (0% error rate)", "info"),
@@ -533,33 +572,80 @@ metadata:
   name: payment-eu
   namespace: production
   annotations:
-    last-applied: "2026-05-12T09:14:02Z"  ← 1 min before incident
+    last-applied: "2026-05-12T09:14:02Z"
 data:
-  PAYMENT_GATEWAY_URL: "https://na-gateway.stripe-taskforge.io/v1"  ← !! WRONG REGION
+  PAYMENT_GATEWAY_URL: |
+
+      https://eu-gateway.stripe-taskforge.io/v1
+
   PAYMENT_REGION: "eu-west-1"
   STRIPE_ACCOUNT: "acct_eu_prod_1f4a9c"
   GATEWAY_TIMEOUT_MS: "5000"
 
-Expected value: "https://eu-gateway.stripe-taskforge.io/v1"
-Actual value:   "https://na-gateway.stripe-taskforge.io/v1"  ← pointing at NA gateway from EU`,
-      "cat /logs/payment-service-eu.log": () => `2026-05-12T09:15:03Z [ERROR] POST https://na-gateway.stripe-taskforge.io/v1/charges
-2026-05-12T09:15:03Z [ERROR] Response: 402 Payment Required
-2026-05-12T09:15:03Z [ERROR] Body: {"error":"cross_region_request_denied","message":"EU account acct_eu_prod_1f4a9c cannot route via NA gateway. Use eu-gateway.stripe-taskforge.io"}
-2026-05-12T09:15:03Z [ERROR] Charge failed for customer cus_EU_8f2b1a — declining
-2026-05-12T09:15:08Z [WARN]  Retry 1/3 — same error
+# Effective string value: "\\n  https://eu-gateway.stripe-taskforge.io/v1\\n"
+# go-http: invalid URI — scheme must not contain whitespace or newlines`,
+      "cat /logs/payment-service-eu.log": () => `2026-05-12T09:15:03Z [ERROR] http: invalid URI "\\n  https://eu-gateway.stripe-taskforge.io/v1\\n"
+2026-05-12T09:15:03Z [ERROR] net/http: request cancelled — malformed URL in transport
+2026-05-12T09:15:03Z [ERROR] Payment failed for customer cus_EU_8f2b1a — declining
+2026-05-12T09:15:08Z [WARN]  Retry 1/3 — same error (URI still malformed)
 2026-05-12T09:15:13Z [WARN]  Retry 2/3 — same error
-2026-05-12T09:15:19Z [ERROR] All retries exhausted. Payment declined.`,
+2026-05-12T09:15:19Z [ERROR] All retries exhausted. Payment declined.
+2026-05-12T09:15:22Z [ERROR] http: invalid URI "\\n  https://eu-gateway.stripe-taskforge.io/v1\\n"
+[repeated for all subsequent charge attempts]`,
       "git log --since=\"2 hours ago\" terraform/": () => `commit f2a9d1c
 Author: infra-bot <infra@taskforge.io>
 Date:   Mon May 12 09:12:44 2026
-    chore: Terraform fmt + variable consolidation for payment-service configs
 
-    Consolidated NA and EU payment-service variables into shared module.
-    ⚠ EU PAYMENT_GATEWAY_URL inadvertently set to NA value during variable merge.
-    
+    chore: Terraform variable consolidation + add EU payment runbook
+
+    Consolidated NA and EU payment-service variables into a shared
+    module using heredoc block scalars for multiline consistency.
+    Also added EU payment gateway runbook and architecture section
+    to README.md.
+
+    ⚠ Heredoc used without trimspace() — PAYMENT_GATEWAY_URL value
+      now contains a leading newline and indentation. go-http rejects
+      it as a malformed URI.
+
     Files changed:
       terraform/modules/payment-service/variables.tf  (+14/-8)
-      terraform/eu-west-1/payment.tfvars              (PAYMENT_GATEWAY_URL overwritten)`,
+      terraform/eu-west-1/payment.tfvars              (PAYMENT_GATEWAY_URL → heredoc, no trimspace)
+      README.md                                        (+52/-1, EU payment runbook section added)`,
+      "git log --oneline -5": () => `f2a9d1c (HEAD -> main) chore: Terraform variable consolidation + add EU payment runbook
+8a2b3c4 (tag: v1.4.1)  chore: routine infra maintenance
+b3f9e12                 feat: add EU subscription renewal cron job
+a7c2d04                 fix: payment retry logic timeout increase
+9e1f3a8                 chore: update Stripe SDK to v14.2.1`,
+      "git show f2a9d1c": () => `commit f2a9d1c
+Author: infra-bot <infra@taskforge.io>
+Date:   Mon May 12 09:12:44 2026
+
+    chore: Terraform variable consolidation + add EU payment runbook
+
+diff --git a/terraform/eu-west-1/payment.tfvars b/terraform/eu-west-1/payment.tfvars
+-eu_payment_gateway_url = "https://eu-gateway.stripe-taskforge.io/v1"
++eu_payment_gateway_url = <<-EOT
++
++  https://eu-gateway.stripe-taskforge.io/v1
++
++EOT
+ eu_payment_region      = "eu-west-1"
+ na_payment_gateway_url = "https://na-gateway.stripe-taskforge.io/v1"
+
+diff --git a/README.md b/README.md
+@@ -142,1 +142,53 @@
++## EU Payment Service
++
++### Architecture
++EU card charges route through payment-service-eu pods in eu-west-1.
++The PAYMENT_GATEWAY_URL ConfigMap key controls which Stripe endpoint is called.
++Correct value: https://eu-gateway.stripe-taskforge.io/v1
++
++### Runbook: EU payment failures
++1. Check payment-service-eu logs for error type (URI, TLS, or Stripe-side)
++2. kubectl get configmap payment-eu -o yaml — inspect PAYMENT_GATEWAY_URL
++3. Cross-reference with terraform show -json
++... [47 more lines of runbook documentation]`,
       "terraform show -json": () => `{
   "values": {
     "root_module": {
@@ -568,7 +654,7 @@ Date:   Mon May 12 09:12:44 2026
           "address": "kubernetes_config_map.payment_eu",
           "values": {
             "data": {
-              "PAYMENT_GATEWAY_URL": "https://na-gateway.stripe-taskforge.io/v1",
+              "PAYMENT_GATEWAY_URL": "\\n  https://eu-gateway.stripe-taskforge.io/v1\\n",
               "PAYMENT_REGION": "eu-west-1"
             },
             "metadata": [{ "name": "payment-eu", "namespace": "production" }]
@@ -578,19 +664,54 @@ Date:   Mon May 12 09:12:44 2026
     }
   },
   "prior_state": {
-    "PAYMENT_GATEWAY_URL": "https://eu-gateway.stripe-taskforge.io/v1"  ← correct value before apply
+    "PAYMENT_GATEWAY_URL": "https://eu-gateway.stripe-taskforge.io/v1"
   }
 }`,
       "kubectl get events": () => `LAST SEEN   TYPE      REASON             OBJECT                       MESSAGE
 4m          Normal    ConfigMapUpdated   configmap/payment-eu         Updated by Terraform at 09:14:02Z
 4m          Normal    Restarted          pod/payment-service-eu-*     ConfigMap change triggered pod restart`,
-      "metric api.500_rate": () => `payment-service-eu: 402 rate: 98.3%
-payment-service-na: 402 rate: 0.1% (baseline)
+      "metric api.500_rate": () => `payment-service-eu: error rate 98.3% (transport-level URI errors, no requests reaching Stripe)
+payment-service-na: error rate 0.1% (baseline)
 EU checkout completion rate: 0% (was 94.2% pre-incident)`,
+      "kubectl patch configmap payment-eu -p '{\"data\":{\"PAYMENT_GATEWAY_URL\":\"https://eu-gateway.stripe-taskforge.io/v1\"}}'": () => `configmap/payment-eu patched
+PAYMENT_GATEWAY_URL updated: clean quoted string, no leading whitespace ✓
+EU payment-service pods restarting to pick up new config...
+error rate: 98% → 14% → 0.2% (recovering)
+
+⚠ WARNING: Terraform state now drifts from cluster state.
+  The .tfvars file still uses the heredoc without trimspace().
+  Next \`terraform apply\` will re-introduce the malformed URL.
+  Fix terraform/eu-west-1/payment.tfvars before your next apply.`,
+      "git revert f2a9d1c": () => `[main 3a1bc4d] Revert "chore: Terraform variable consolidation + add EU payment runbook"
+ 3 files changed, 9 insertions(+), 67 deletions(-)
+
+⚠ WARNING: This revert also removed README.md changes.
+  The EU payment runbook section (+52 lines) has been deleted.
+  If that documentation should be preserved, use fix-forward instead:
+  terraform apply -var 'eu_payment_gateway_url=https://eu-gateway.stripe-taskforge.io/v1'
+
+Next step: run \`terraform apply\` to sync cluster state with the reverted config.`,
+      "terraform apply -var 'eu_payment_gateway_url=https://eu-gateway.stripe-taskforge.io/v1'": () => `Terraform will perform the following actions:
+
+  ~ kubernetes_config_map.payment_eu
+      ~ data = {
+          ~ "PAYMENT_GATEWAY_URL" = "\\n  https://eu-gateway.stripe-taskforge.io/v1\\n" -> "https://eu-gateway.stripe-taskforge.io/v1"
+        }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+
+Apply complete! Resources: 1 changed.
+
+ConfigMap updated. EU payment-service pods restarting...
+EU payment error rate: 98% → 0.2%. Checkout recovering.
+
+Terraform state and cluster config are now in sync.
+Root cause permanently resolved. Consider adding trimspace() to heredoc
+variables to prevent this class of error in future applies.`,
     },
     diagnosis: {
       correctCategory: "config_mismatch",
-      correctTrigger: "terraform_overwrote_eu_payment_gateway_url",
+      correctTrigger: "terraform_heredoc_malformed_url",
       correctBlastRadius: ["eu_payments", "eu_checkout", "eu_subscriptions"],
       categories: [
         { id: "config_mismatch", label: "Configuration mismatch — wrong environment variable or setting applied" },
@@ -601,7 +722,7 @@ EU checkout completion rate: 0% (was 94.2% pre-incident)`,
         { id: "certificate_expiry", label: "TLS certificate expiry — HTTPS connections failing" },
       ],
       triggers: [
-        { id: "terraform_overwrote_eu_payment_gateway_url", label: "Terraform apply overwrote EU PAYMENT_GATEWAY_URL with the NA endpoint value" },
+        { id: "terraform_heredoc_malformed_url", label: "Terraform heredoc block scalar in payment.tfvars left leading whitespace in PAYMENT_GATEWAY_URL — go-http rejects as invalid URI" },
         { id: "stripe_eu_gateway_outage", label: "Stripe's EU payment gateway is experiencing an outage (external)" },
         { id: "dns_misconfiguration", label: "DNS record for eu-gateway.stripe-taskforge.io was changed to point at NA" },
         { id: "feature_flag_disabled_eu_payments", label: "A feature flag accidentally disabled EU payment processing" },
@@ -615,46 +736,25 @@ EU checkout completion rate: 0% (was 94.2% pre-incident)`,
         { id: "auth_sessions", label: "Authentication and user sessions" },
       ],
     },
-    recoveryOptions: [
+    recoveryOptions: [],
+    recoveryTriggers: [
       {
-        id: "revert_terraform_apply",
-        label: "Revert Terraform state and re-apply correct EU config",
-        desc: "Run terraform apply with the correct eu-gateway.stripe-taskforge.io value. Clean, idempotent, and fixes the root cause permanently.",
-        badge: "RECOMMENDED — PERMANENT FIX",
-        badgeColor: "bg-green-500/20 text-green-600",
-        points: 15,
-        feedMessage: "Terraform reverted. ConfigMap payment-eu updated: PAYMENT_GATEWAY_URL → eu-gateway.stripe-taskforge.io. Pods restarted. EU payment 402 rate: 98% → 0.2%. Checkout recovering.",
+        patterns: ["patch configmap payment-eu"],
+        feedMessage: "ConfigMap patched directly. EU payments recovering. ⚠ Terraform state drifts — fix .tfvars to prevent recurrence.",
+        feedType: "warning",
+        preventionDelta: -1,
+      },
+      {
+        patterns: ["git revert f2a9d1c"],
+        feedMessage: "Terraform commit reverted. ⚠ README runbook section (52 lines) was lost in the revert — will need to be re-documented. Run `terraform apply` to sync cluster.",
+        feedType: "warning",
+        preventionDelta: -2,
+      },
+      {
+        patterns: ["terraform apply -var"],
+        feedMessage: "Terraform applied with corrected variable. ConfigMap updated cleanly. README preserved. Root cause permanently fixed at source.",
         feedType: "good",
-      },
-      {
-        id: "patch_configmap_manually",
-        label: "Manually kubectl patch the payment-eu ConfigMap",
-        desc: "Apply the fix directly with kubectl without going through Terraform. Fast, but Terraform state will drift — next apply will re-break it.",
-        badge: "VALID — CAUSES DRIFT",
-        badgeColor: "bg-amber-500/20 text-amber-600",
-        points: 7,
-        feedMessage: "ConfigMap patched manually. EU payments recovering. ⚠ Warning: Terraform state now drifts. Next 'terraform apply' will revert to wrong value. Fix the .tfvars file.",
-        feedType: "warning",
-      },
-      {
-        id: "failover_eu_to_na",
-        label: "Reroute all EU traffic through NA payment-service temporarily",
-        desc: "Update load balancer to send EU payment requests to NA pods while EU is broken. Cross-region routing adds ~180ms latency.",
-        badge: "WORKAROUND — HIGH LATENCY",
-        badgeColor: "bg-amber-500/20 text-amber-600",
-        points: 3,
-        feedMessage: "EU traffic rerouted to NA payment-service. Payments processing via NA gateway with cross-region auth. 402 rate: 0%. Latency +180ms for EU customers. Root cause still present.",
-        feedType: "warning",
-      },
-      {
-        id: "restart_eu_pods",
-        label: "Restart EU payment-service pods",
-        desc: "Force restart all EU payment-service pods hoping the config reloads correctly.",
-        badge: "⚠ WON'T FIX — CONFIG IS WRONG",
-        badgeColor: "bg-red-500/20 text-red-600",
-        points: -3,
-        feedMessage: "EU payment pods restarted. Pods re-read the ConfigMap with the WRONG PAYMENT_GATEWAY_URL. Error rate remains at 98%. No change. Root cause is in the config, not the pod state.",
-        feedType: "bad",
+        preventionDelta: 2,
       },
     ],
   },
