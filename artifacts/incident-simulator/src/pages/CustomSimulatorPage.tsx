@@ -75,7 +75,7 @@ export default function CustomSimulatorPage() {
         setSessionKey((k) => k + 1);
         setDebriefDismissed(false);
         queryClient.invalidateQueries({ queryKey: getGetCustomSimulatorStateQueryKey() });
-        window.location.href = "/";
+        window.location.href = "/setup";
       },
     });
   };
@@ -113,7 +113,7 @@ export default function CustomSimulatorPage() {
         <AlertCircle className="w-8 h-8 text-destructive" />
         <p className="text-destructive font-bold">Generation Failed</p>
         <p className="text-muted-foreground text-sm max-w-sm text-center">{state.generationError}</p>
-        <Button onClick={() => { window.location.href = "/"; }} variant="outline" className="font-mono text-xs mt-2">
+        <Button onClick={() => { window.location.href = "/setup"; }} variant="outline" className="font-mono text-xs mt-2">
           ← Back to Setup
         </Button>
       </div>
@@ -123,7 +123,7 @@ export default function CustomSimulatorPage() {
   if (!state.scenario) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background text-muted-foreground font-mono text-sm">
-        No scenario loaded. <button className="text-primary ml-2 underline" onClick={() => { window.location.href = "/"; }}>Go to setup</button>
+        No scenario loaded. <button className="text-primary ml-2 underline" onClick={() => { window.location.href = "/setup"; }}>Go to setup</button>
       </div>
     );
   }
@@ -152,7 +152,7 @@ export default function CustomSimulatorPage() {
           ) : (
             <Badge variant="destructive" className="animate-pulse font-bold px-3 py-1">ACTIVE</Badge>
           )}
-          <Button variant="outline" size="sm" onClick={() => { window.location.href = "/"; }} className="font-mono text-xs border-border text-muted-foreground hover:text-foreground">
+          <Button variant="outline" size="sm" onClick={() => { window.location.href = "/setup"; }} className="font-mono text-xs border-border text-muted-foreground hover:text-foreground">
             <Settings className="w-3 h-3 mr-2" /> Configure
           </Button>
           <Button variant="outline" size="sm" onClick={handleReset} data-testid="btn-reset" className="font-mono text-xs">
@@ -521,7 +521,7 @@ function DebriefModal({ isOpen, debrief, score, onClose }: { isOpen: boolean; de
           </div>
         </div>
         <div className="flex justify-between pt-2 border-t border-border">
-          <Button onClick={() => { window.location.href = "/"; }} variant="outline" className="font-mono text-xs">
+          <Button onClick={() => { window.location.href = "/setup"; }} variant="outline" className="font-mono text-xs">
             ← New Scenario
           </Button>
           <Button onClick={onClose} className="font-mono text-xs">CLOSE DEBRIEF</Button>

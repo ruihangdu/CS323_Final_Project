@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Activity, TrendingUp, ChevronRight, Building2, Palette, Sparkles, Loader2, Terminal, BookOpen } from "lucide-react";
+import { Activity, ChevronRight, Building2, Palette, Sparkles, Loader2, Terminal, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useGenerateCustomScenario } from "@workspace/api-client-react";
@@ -20,20 +20,7 @@ const PRESET_SCENARIOS = [
     defaultBrand: "dev",
     path: "/sim",
   },
-  {
-    id: "cos",
-    icon: TrendingUp,
-    title: "Chief of Staff",
-    subtitle: "Creator HQ Crisis Management",
-    description:
-      "A creator's old clip is going viral with the wrong context. Manage the PR fallout, brief stakeholders, and decide whether to issue a statement — fast.",
-    tags: ["Viral Crisis", "Stakeholder Comms", "Brand Protection"],
-    defaultCompany: "Creator HQ",
-    defaultColor: "38 92% 50%",
-    defaultFg: "0 0% 0%",
-    defaultBrand: "editorial",
-    path: "/cos-simulator/",
-  },
+
 ];
 
 const BRANDS = [
