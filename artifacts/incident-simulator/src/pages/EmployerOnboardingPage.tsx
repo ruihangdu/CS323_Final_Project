@@ -245,13 +245,14 @@ export default function EmployerOnboardingPage() {
   const [step, setStep] = useState(0);
   const directionRef = useRef(1);
 
+  const defaultSweRole = ROLE_PRESETS.find((r) => r.id === "software_engineer");
   const [selectedRoleId, setSelectedRoleId] = useState<string>("software_engineer");
-  const [roleTitle, setRoleTitle] = useState(
-    ROLE_PRESETS.find((r) => r.id === "software_engineer")?.label ?? "",
-  );
+  const [roleTitle, setRoleTitle] = useState(defaultSweRole?.label ?? "");
   const [company, setCompany] = useState("");
   const [roleContext, setRoleContext] = useState("");
-  const [skills, setSkills] = useState<string[]>([]);
+  const [skills, setSkills] = useState<string[]>(
+    defaultSweRole?.suggestedSkills.slice(0, 3) ?? [],
+  );
 
   const activePreset: RolePreset | null = useMemo(() => {
     if (!selectedRoleId) return null;
@@ -263,11 +264,14 @@ export default function EmployerOnboardingPage() {
     setSelectedRoleId(id);
     if (id === "custom") {
       setRoleTitle("");
+      setSkills([]);
     } else {
       const preset = ROLE_PRESETS.find((r) => r.id === id);
-      if (preset) setRoleTitle(preset.label);
+      if (preset) {
+        setRoleTitle(preset.label);
+        setSkills(preset.suggestedSkills.slice(0, 3));
+      }
     }
-    setSkills([]);
   }
 
   const stepValid = useMemo(() => {
@@ -353,7 +357,7 @@ export default function EmployerOnboardingPage() {
         roleTitle={roleTitle}
       />
 
-      <TopStrip step={step} totalSteps={STEPS.length} />
+      <TopStrip />
 
       <div className="relative z-10 min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-[600px]">
@@ -1472,7 +1476,7 @@ function Nav({
   );
 }
 
-function TopStrip({ step, totalSteps }: { step: number; totalSteps: number }) {
+function TopStrip() {
   return (
     <div
       className="relative z-10"
@@ -1496,38 +1500,8 @@ function TopStrip({ step, totalSteps }: { step: number; totalSteps: number }) {
           >
             Arena
           </span>
-          <span
-            className="text-[10.5px] tracking-[0.22em] uppercase pl-3 ml-1 truncate"
-            style={{
-              color: CREAM_VDIM,
-              fontFamily: "'Space Mono', monospace",
-              borderLeft: "1px solid rgba(237,230,210,0.10)",
-            }}
-          >
-            Employer Studio
-          </span>
         </div>
         <div className="flex items-center gap-5">
-          <span
-            className="text-[10.5px] tracking-[0.22em] uppercase"
-            style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
-          >
-            session · 01
-          </span>
-          <span
-            className="hidden sm:inline-flex items-center gap-2 px-3 py-1 text-[10.5px] tracking-[0.22em] uppercase rounded-full"
-            style={{
-              border: "1px solid rgba(237,230,210,0.15)",
-              color: CREAM_DIM,
-              fontFamily: "'Space Mono', monospace",
-            }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full animate-pulse"
-              style={{ background: ACCENT }}
-            />
-            Recording · {String(step + 1).padStart(2, "0")}/{String(totalSteps).padStart(2, "0")}
-          </span>
         </div>
       </div>
     </div>

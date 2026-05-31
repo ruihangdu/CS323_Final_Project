@@ -6,12 +6,17 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "dev": "concurrently --kill-others --names api,sim,cos --prefix-colors blue,green,magenta \"pnpm run dev:api\" \"pnpm run dev:sim\" \"pnpm run dev:cos\"",
+    "dev:api": "PORT=3001 pnpm --filter @workspace/api-server run dev",
+    "dev:sim": "PORT=5173 BASE_PATH=/ API_PORT=3001 COS_PORT=5174 pnpm --filter @workspace/incident-simulator run dev",
+    "dev:cos": "PORT=5174 BASE_PATH=/cos-simulator/ API_PORT=3001 pnpm --filter @workspace/cos-simulator run dev"
   },
   "private": true,
   "devDependencies": {
     "@rollup/rollup-darwin-arm64": "^4.60.4",
     "@tailwindcss/oxide-darwin-arm64": "^4.3.0",
+    "concurrently": "^9.1.0",
     "lightningcss-darwin-arm64": "^1.32.0",
     "prettier": "^3.8.1",
     "typescript": "~5.9.2"

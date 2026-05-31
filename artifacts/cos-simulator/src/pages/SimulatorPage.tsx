@@ -12,7 +12,6 @@ import {
   TrendingUp,
   Users,
   Heart,
-  Activity,
   Settings,
 } from "lucide-react";
 
@@ -78,17 +77,15 @@ function useBranding() {
   }, [accentColor, accentFg, brand]);
 
   const companySlug = companyName.toLowerCase().replace(/[^a-z0-9]/g, "-");
-  const devopsParams = new URLSearchParams(window.location.search).toString();
-  const devopsUrl = `/sim${devopsParams ? `?${devopsParams}` : ""}`;
 
-  return { companyName, companySlug, devopsUrl, brand };
+  return { companyName, companySlug, brand };
 }
 
 export default function SimulatorPage() {
   const queryClient = useQueryClient();
   const [sessionKey, setSessionKey] = useState(0);
   const [debriefDismissed, setDebriefDismissed] = useState(false);
-  const { companyName, companySlug, devopsUrl, brand } = useBranding();
+  const { companyName, companySlug, brand } = useBranding();
   const { data: state, isLoading } = useGetCosSimulatorState({
     query: {
       refetchInterval: 3000,
@@ -164,14 +161,6 @@ export default function SimulatorPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { window.location.href = devopsUrl; }}
-            className="font-mono text-xs border-primary/50 text-primary hover:bg-primary/10"
-          >
-            <Activity className="w-3 h-3 mr-2" /> SWE On-Call Role
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={handleReset}
             data-testid="btn-reset"
             className="font-mono text-xs"
@@ -208,6 +197,7 @@ export default function SimulatorPage() {
           !debriefDismissed
         }
         debrief={state.debrief}
+        breakdown={state.score}
         score={state.totalScore}
         onClose={() => setDebriefDismissed(true)}
       />
@@ -1080,15 +1070,254 @@ function ScorePanel({
   );
 }
 
+// ── Debrief Constellation (mirrors the SWE debrief; 6 CoS score nodes) ─────
+
+type CosDebriefNodeDef = {
+  id: keyof CosScoreBreakdown;
+  label: string;
+  max: number;
+  cx: number;
+  cy: number;
+};
+
+const COS_DEBRIEF_NODES: CosDebriefNodeDef[] = [
+  { id: "investigation", label: "Investigation", max: 20, cx: 130, cy: 90 },
+  { id: "crisisContainment", label: "Containment", max: 20, cx: 410, cy: 80 },
+  { id: "stakeholderManagement", label: "Stakeholders", max: 20, cx: 250, cy: 210 },
+  { id: "creatorSupport", label: "Creator Support", max: 20, cx: 510, cy: 220 },
+  { id: "communication", label: "Communication", max: 10, cx: 150, cy: 330 },
+  { id: "prevention", label: "Prevention", max: 10, cx: 420, cy: 340 },
+];
+
+const COS_DEBRIEF_EDGES: [number, number][] = [
+  [0, 2], [1, 2], [1, 3], [2, 3], [2, 4], [3, 5], [4, 5],
+];
+
+const COS_DEBRIEF_TINY_STARS = [
+  { cx: 60, cy: 200, r: 1.8 },
+  { cx: 580, cy: 60, r: 1.6 },
+  { cx: 600, cy: 380, r: 2.0 },
+  { cx: 320, cy: 60, r: 1.4 },
+  { cx: 60, cy: 400, r: 1.6 },
+  { cx: 580, cy: 160, r: 1.4 },
+];
+
+type CosDebriefStatus = "focus" | "core" | "partial" | "weak";
+
+function CosDebriefConstellation({
+  score,
+  totalScore,
+}: {
+  score: CosScoreBreakdown;
+  totalScore: number;
+}) {
+  const enriched = COS_DEBRIEF_NODES.map((n) => {
+    const value = score[n.id] as number;
+    const pct = value / n.max;
+    return { ...n, value, pct };
+  });
+  const minPct = Math.min(...enriched.map((n) => n.pct));
+  const focusIdx = enriched.findIndex((n) => n.pct === minPct);
+
+  function statusOf(idx: number, pct: number): CosDebriefStatus {
+    if (idx === focusIdx) return "focus";
+    if (pct >= 0.75) return "core";
+    if (pct >= 0.4) return "partial";
+    return "weak";
+  }
+
+  const strong = enriched.filter((n) => n.pct >= 0.75).length;
+  const partial = enriched.filter((n) => n.pct >= 0.4 && n.pct < 0.75).length;
+  const weak = enriched.filter((n) => n.pct < 0.4).length;
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-md border border-border"
+      style={{ background: "#0a0c11", minHeight: 380 }}
+    >
+      <div
+        className="absolute inset-0 opacity-50 pointer-events-none"
+        style={{
+          backgroundImage:
+            "radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+        }}
+      />
+
+      <div className="absolute top-4 left-5 right-5 flex justify-between font-mono text-[11px] text-white/55 z-10">
+        <span>after-action constellation</span>
+        <span>
+          {strong} strong · {partial} partial · {weak} weak
+        </span>
+      </div>
+
+      <svg
+        viewBox="0 0 640 420"
+        preserveAspectRatio="xMidYMid meet"
+        className="w-full"
+        style={{ height: 380 }}
+      >
+        <defs>
+          <radialGradient id="cosDbgFocus" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="hsl(35 100% 60%)" stopOpacity="0.85" />
+            <stop offset="100%" stopColor="hsl(35 100% 60%)" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="cosDbgCore" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="hsl(200 85% 65%)" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="hsl(200 85% 65%)" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="cosDbgPartial" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="hsl(200 40% 60%)" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="hsl(200 40% 60%)" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="cosDbgWeak" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="hsl(0 60% 55%)" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="hsl(0 60% 55%)" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        <g
+          stroke="rgba(255,255,255,0.16)"
+          strokeWidth="1"
+          strokeDasharray="2 4"
+          fill="none"
+        >
+          {COS_DEBRIEF_EDGES.map(([a, b], i) => (
+            <line
+              key={i}
+              x1={enriched[a].cx}
+              y1={enriched[a].cy}
+              x2={enriched[b].cx}
+              y2={enriched[b].cy}
+            />
+          ))}
+        </g>
+
+        <g fill="rgba(255,255,255,0.4)">
+          {COS_DEBRIEF_TINY_STARS.map((s, i) => (
+            <circle key={i} cx={s.cx} cy={s.cy} r={s.r} />
+          ))}
+        </g>
+
+        {enriched.map((n, i) => {
+          const status = statusOf(i, n.pct);
+          if (status === "focus") {
+            return (
+              <g key={String(n.id)}>
+                <circle cx={n.cx} cy={n.cy} r="44" fill="url(#cosDbgFocus)">
+                  <animate
+                    attributeName="r"
+                    values="38;52;38"
+                    dur="2.6s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle cx={n.cx} cy={n.cy} r="6.5" fill="hsl(35 100% 70%)" />
+              </g>
+            );
+          }
+          if (status === "core") {
+            return (
+              <g key={String(n.id)}>
+                <circle cx={n.cx} cy={n.cy} r="22" fill="url(#cosDbgCore)" />
+                <circle cx={n.cx} cy={n.cy} r="4.5" fill="hsl(200 85% 78%)" />
+              </g>
+            );
+          }
+          if (status === "partial") {
+            return (
+              <g key={String(n.id)}>
+                <circle cx={n.cx} cy={n.cy} r="20" fill="url(#cosDbgPartial)" opacity="0.7" />
+                <circle
+                  cx={n.cx}
+                  cy={n.cy}
+                  r="13"
+                  fill="none"
+                  stroke="hsl(200 40% 75%)"
+                  strokeWidth="1.2"
+                  strokeDasharray="3 3"
+                />
+                <circle cx={n.cx} cy={n.cy} r="3" fill="hsl(200 40% 75%)" opacity="0.8" />
+              </g>
+            );
+          }
+          return (
+            <g key={String(n.id)}>
+              <circle cx={n.cx} cy={n.cy} r="18" fill="url(#cosDbgWeak)" />
+              <circle cx={n.cx} cy={n.cy} r="3.5" fill="hsl(0 60% 70%)" />
+            </g>
+          );
+        })}
+
+        <g fontFamily="'Space Mono', monospace">
+          {enriched.map((n, i) => {
+            const status = statusOf(i, n.pct);
+            const offsetY = status === "focus" ? 70 : 38;
+            const nameColor =
+              status === "focus"
+                ? "hsl(35 100% 72%)"
+                : status === "core"
+                ? "rgba(255,255,255,0.92)"
+                : status === "weak"
+                ? "hsl(0 60% 80%)"
+                : "rgba(255,255,255,0.7)";
+            return (
+              <g key={String(n.id)} textAnchor="middle">
+                <text x={n.cx} y={n.cy + offsetY} fontSize="11" fill={nameColor}>
+                  {n.label}
+                </text>
+                <text
+                  x={n.cx}
+                  y={n.cy + offsetY + 14}
+                  fontSize="10"
+                  fill="rgba(255,255,255,0.55)"
+                >
+                  {n.value}/{n.max}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+
+      <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between z-10 gap-4">
+        <div className="min-w-0">
+          <div className="text-white/55 font-mono text-[11px]">your performance</div>
+          <div
+            className="font-mono text-3xl font-bold tracking-tight mt-0.5"
+            style={{ color: "hsl(35 100% 72%)" }}
+          >
+            {totalScore}
+            <span className="text-white/55 text-base font-normal">/100</span>
+          </div>
+        </div>
+        {enriched[focusIdx] && (
+          <div className="text-right shrink-0">
+            <div className="text-white/55 font-mono text-[11px]">weakest node</div>
+            <div
+              className="font-mono text-[13px] mt-0.5"
+              style={{ color: "hsl(35 100% 72%)" }}
+            >
+              {enriched[focusIdx].label}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DebriefModal({
   isOpen,
   debrief,
   score,
+  breakdown,
   onClose,
 }: {
   isOpen: boolean;
   debrief: string | null;
   score: number;
+  breakdown: CosScoreBreakdown;
   onClose: () => void;
 }) {
   return (
@@ -1098,7 +1327,7 @@ function DebriefModal({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-card border-border sm:rounded-none">
+      <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto bg-card border-border sm:rounded-none">
         <DialogHeader>
           <DialogTitle className="font-mono text-xl text-primary border-b border-border pb-4 flex items-center gap-2">
             <CheckCircle2 className="w-6 h-6 text-green-500" /> CRISIS RESOLVED
@@ -1108,15 +1337,7 @@ function DebriefModal({
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 font-mono space-y-6">
-          <div className="text-center p-6 bg-background rounded-md border border-border">
-            <div className="text-sm text-muted-foreground mb-2">
-              FINAL EVALUATION SCORE
-            </div>
-            <div className="text-5xl font-bold text-primary">
-              {score}
-              <span className="text-xl text-muted-foreground">/100</span>
-            </div>
-          </div>
+          <CosDebriefConstellation score={breakdown} totalScore={score} />
 
           <div>
             <h3 className="text-sm font-bold text-primary mb-2 uppercase tracking-wider">

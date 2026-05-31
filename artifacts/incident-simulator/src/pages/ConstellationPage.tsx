@@ -4,6 +4,9 @@ import { ArrowLeft, ArrowRight, Sparkles, Check, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   SCENARIO_META,
+  SCENARIO_KEYWORDS,
+  COS_SCENARIO_META,
+  COS_SCENARIO_KEYWORDS,
   PENDING_SCENARIO_KEY,
   pickRecommendedScenario,
   scoreScenario,
@@ -142,8 +145,6 @@ export default function ConstellationPage() {
   if (!profile) return null;
 
   const focusNode = nodes.find((n) => n.status === "focus");
-  const coreCount = nodes.filter((n) => n.status === "core").length;
-  const partialCount = nodes.filter((n) => n.status === "partial").length;
 
   return (
     <div
@@ -163,6 +164,15 @@ export default function ConstellationPage() {
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1.45fr_1fr]">
         <div className="relative overflow-hidden">
           <div
+            className="absolute top-6 left-7 z-10 text-[10.5px] tracking-[0.22em] uppercase"
+            style={{
+              color: CREAM_VDIM,
+              fontFamily: "'Space Mono', monospace",
+            }}
+          >
+            Skill graph
+          </div>
+          <div
             className="absolute inset-0 opacity-60 pointer-events-none"
             style={{
               backgroundImage:
@@ -177,20 +187,6 @@ export default function ConstellationPage() {
                 "radial-gradient(ellipse at 40% 50%, rgba(224,135,99,0.06) 0%, transparent 60%)",
             }}
           />
-
-          <div
-            className="absolute top-6 left-7 right-7 flex justify-between text-[10.5px] tracking-[0.22em] uppercase z-10"
-            style={{
-              color: CREAM_VDIM,
-              fontFamily: "'Space Mono', monospace",
-            }}
-          >
-            <span>the shape of who you're hiring</span>
-            <span>
-              {coreCount} core · 1 focus · {partialCount} partial ·{" "}
-              {TINY_STARS.length} unseen
-            </span>
-          </div>
 
           <motion.svg
             viewBox="0 0 640 520"
@@ -435,15 +431,6 @@ export default function ConstellationPage() {
         >
           <div>
             <div
-              className="text-[10.5px] tracking-[0.22em] uppercase"
-              style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
-            >
-              Skill graph
-            </div>
-          </div>
-
-          <div>
-            <div
               className="text-[10px] tracking-[0.22em] uppercase mb-1.5"
               style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
             >
@@ -462,12 +449,6 @@ export default function ConstellationPage() {
           </div>
 
           <div>
-            <div
-              className="text-[10px] tracking-[0.22em] uppercase mb-2"
-              style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
-            >
-              The graph · 5 nodes
-            </div>
             <div className="flex flex-col">
               {nodes.map((n, i) => (
                 <NodeRow key={n.id} index={i + 1} node={n} delay={0.5 + i * 0.08} />
@@ -508,7 +489,7 @@ export default function ConstellationPage() {
                 color: CREAM_DIM,
               }}
             >
-              Next, we generate the test from this map.
+              Next, we craft your Arena from this map.
             </p>
             <button
               type="button"
@@ -527,7 +508,7 @@ export default function ConstellationPage() {
               }}
             >
               <Sparkles className="w-3 h-3" />
-              Generate test
+              Generate Arena
               <span
                 className="inline-flex items-center justify-center w-5 h-5 rounded-full transition-transform group-hover:translate-x-0.5"
                 style={{ background: SKY, color: ACCENT }}
@@ -539,21 +520,12 @@ export default function ConstellationPage() {
         </motion.div>
       </div>
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {phase === "loading" && (
           <GeneratingOverlay
             key="loading"
             profile={profile}
-            onDone={() => {
-              // Chief of Staff role uses a completely different simulator
-              // (Creator HQ crisis management), so route there directly and
-              // skip the incident picker — there's nothing to pick from.
-              if (profile?.roleTitle === "Chief of Staff") {
-                window.location.href = "/cos-simulator/";
-              } else {
-                setPhase("picking");
-              }
-            }}
+            onDone={() => setPhase("picking")}
           />
         )}
         {phase === "picking" && (
@@ -561,6 +533,13 @@ export default function ConstellationPage() {
             key="picking"
             profile={profile}
             onLaunch={(scenarioId) => {
+              // Chief of Staff routes to the Creator HQ simulator instead.
+              // The chosen incident still gets handed off so /sim flows can
+              // pre-select; CoS just ignores it and uses its built-in scenario.
+              if (profile?.roleTitle === "Chief of Staff") {
+                window.location.href = "/cos-simulator/";
+                return;
+              }
               sessionStorage.setItem(PENDING_SCENARIO_KEY, scenarioId);
               navigate("/sim");
             }}
@@ -701,34 +680,24 @@ const GENERATING_STEPS: Step[] = [
   {
     id: "read",
     label: (p) => `Reading role profile · ${p.roleTitle}`,
-    duration: 600,
+    duration: 700,
   },
   {
     id: "map",
     label: (p) =>
-      `Mapping ${p.skills.length} skill${p.skills.length === 1 ? "" : "s"} onto incident vectors`,
-    duration: 800,
+      `Mapping ${p.skills.length} skill${p.skills.length === 1 ? "" : "s"} onto Arena vectors`,
+    duration: 900,
   },
   {
     id: "focus",
     label: (p) =>
       `Setting primary probe · ${p.skills[0] ?? "judgment under ambiguity"}`,
-    duration: 750,
-  },
-  {
-    id: "select",
-    label: () => "Searching scenario library",
     duration: 850,
-  },
-  {
-    id: "calibrate",
-    label: () => "Calibrating difficulty curve",
-    duration: 700,
   },
   {
     id: "compile",
     label: () => "Stitching the narrative",
-    duration: 1000,
+    duration: 1100,
   },
 ];
 
@@ -790,8 +759,7 @@ function GeneratingOverlay({
             letterSpacing: "-0.012em",
           }}
         >
-          Building a test for your{" "}
-          <em style={{ color: ACCENT, fontStyle: "italic" }}>candidate</em>
+          Building an <em style={{ color: ACCENT, fontStyle: "italic" }}>Arena</em> for your candidate
         </h2>
 
         {profile && (
@@ -862,7 +830,7 @@ function GeneratingOverlay({
             >
               <ArrowRight className="w-3.5 h-3.5" style={{ color: ACCENT }} />
               <span style={{ color: ACCENT, letterSpacing: "0.02em" }}>
-                Continuing to incident briefing
+                Your Arena is ready
               </span>
             </motion.div>
           )}
@@ -899,30 +867,47 @@ function PickerOverlay({
   profile: Profile | null;
   onLaunch: (scenarioId: string) => void;
 }) {
+  const isForCos = profile?.roleTitle === "Chief of Staff";
+  const scenarioSet = isForCos ? COS_SCENARIO_META : SCENARIO_META;
+  const keywordSet = isForCos ? COS_SCENARIO_KEYWORDS : SCENARIO_KEYWORDS;
+
   const recommendedId = useMemo(
-    () => pickRecommendedScenario(profile as EmployerProfile | null),
-    [profile],
-  );
-  const recommended = SCENARIO_META[recommendedId] ?? SCENARIO_META.maint_bot;
-  const others = useMemo(
     () =>
-      Object.values(SCENARIO_META).filter((s) => s.id !== recommended.id),
-    [recommended.id],
-  );
-  const recommendedMatch = useMemo(
-    () => scoreScenario(recommendedId, profile as EmployerProfile | null),
-    [recommendedId, profile],
+      pickRecommendedScenario(
+        profile as EmployerProfile | null,
+        scenarioSet,
+        keywordSet,
+      ),
+    [profile, scenarioSet, keywordSet],
   );
 
-  const [selectedId, setSelectedId] = useState<string>(recommended.id);
+  const [selectedId, setSelectedId] = useState<string>(recommendedId);
+  const fallback = Object.values(scenarioSet)[0];
+  const hero = scenarioSet[selectedId] ?? fallback;
+  const alternates = useMemo(
+    () => Object.values(scenarioSet).filter((s) => s.id !== hero.id),
+    [hero.id, scenarioSet],
+  );
+  const heroMatch = useMemo(
+    () =>
+      scoreScenario(hero.id, profile as EmployerProfile | null, keywordSet),
+    [hero.id, profile, keywordSet],
+  );
+  const isRecommendedHero = hero.id === recommendedId;
+
+  // If the user's selection isn't in the current scenario set (e.g. role
+  // changed back from CoS), snap to the recommended one.
+  useEffect(() => {
+    if (!scenarioSet[selectedId]) setSelectedId(recommendedId);
+  }, [scenarioSet, selectedId, recommendedId]);
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
+      initial={{ opacity: 1 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.35 }}
-      className="fixed inset-0 z-50 flex items-center justify-center px-6 py-10 overflow-y-auto"
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center px-6 py-6 overflow-y-auto"
       style={{
         background: "rgba(10,12,17,0.94)",
         backdropFilter: "blur(28px)",
@@ -931,122 +916,117 @@ function PickerOverlay({
     >
       <div className="w-full max-w-[640px]">
         <div
-          className="text-[10.5px] tracking-[0.22em] uppercase mb-5 flex items-center gap-3"
+          className="text-[10.5px] tracking-[0.22em] uppercase mb-3 flex items-center gap-3"
           style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
         >
           <span
             className="w-1.5 h-1.5 rounded-full"
             style={{ background: ACCENT, boxShadow: `0 0 10px ${ACCENT}` }}
           />
-          Arena · incident briefing
+          Arena
         </div>
 
         <h2
           className="leading-[1.04]"
           style={{
             fontFamily: "'Instrument Serif', Georgia, serif",
-            fontSize: "42px",
+            fontSize: "32px",
             fontWeight: 400,
             color: CREAM,
             letterSpacing: "-0.012em",
           }}
         >
-          Your <em style={{ color: ACCENT, fontStyle: "italic" }}>incident</em> is ready
+          Your <em style={{ color: ACCENT, fontStyle: "italic" }}>Arena</em> is ready
         </h2>
         {profile && (
           <p
-            className="mt-3 max-w-[480px]"
+            className="mt-2 max-w-[480px]"
             style={{
               fontFamily: "'Instrument Serif', Georgia, serif",
               fontStyle: "italic",
-              fontSize: "17px",
+              fontSize: "14.5px",
               color: CREAM_DIM,
               lineHeight: 1.5,
             }}
           >
-            Built from what you told us about your {profile.roleTitle.toLowerCase()}.
+            We've crafted a custom Arena to help you find your perfect {profile.roleTitle}.
           </p>
         )}
 
         {/* Hero recommended card */}
-        <motion.button
-          type="button"
-          onClick={() => setSelectedId(recommended.id)}
+        <motion.div
+          key={hero.id}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          className="block w-full text-left mt-8 p-6 rounded-2xl transition-all"
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="block w-full text-left mt-5 p-5 rounded-2xl"
           style={{
-            background:
-              selectedId === recommended.id
-                ? "rgba(224,135,99,0.06)"
-                : "rgba(20,22,28,0.65)",
+            background: "rgba(224,135,99,0.06)",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
-            border:
-              selectedId === recommended.id
-                ? `1px solid ${ACCENT}`
-                : "1px solid rgba(237,230,210,0.10)",
-            boxShadow:
-              selectedId === recommended.id
-                ? `0 0 0 1px ${ACCENT}, 0 24px 60px -24px rgba(224,135,99,0.35), 0 12px 32px -16px rgba(0,0,0,0.4)`
-                : "0 12px 32px -16px rgba(0,0,0,0.5)",
+            border: `1px solid ${ACCENT}`,
+            boxShadow: `0 0 0 1px ${ACCENT}, 0 24px 60px -24px rgba(224,135,99,0.35), 0 12px 32px -16px rgba(0,0,0,0.4)`,
           }}
         >
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center justify-between gap-3 mb-2.5">
             <span
               className="inline-flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase"
               style={{ color: ACCENT, fontFamily: "'Space Mono', monospace" }}
             >
               <span
-                className="w-1.5 h-1.5 rounded-full animate-pulse"
-                style={{ background: ACCENT }}
+                className={`w-1.5 h-1.5 rounded-full ${isRecommendedHero ? "animate-pulse" : ""}`}
+                style={{
+                  background: ACCENT,
+                  opacity: isRecommendedHero ? 1 : 0.6,
+                }}
               />
-              {profile
-                ? `Custom-built for your ${profile.roleTitle.toLowerCase()}`
-                : "Recommended"}
+              {isRecommendedHero
+                ? profile
+                  ? `Custom-built for your ${profile.roleTitle.toLowerCase()}`
+                  : "Recommended"
+                : "Selected Arena"}
             </span>
-            <DifficultyChip difficulty={recommended.difficulty} />
+            <DifficultyChip difficulty={hero.difficulty} />
           </div>
           <div
             style={{
               fontFamily: "'Instrument Serif', Georgia, serif",
-              fontSize: "30px",
+              fontSize: "23px",
               fontWeight: 400,
               color: CREAM,
               letterSpacing: "-0.01em",
               lineHeight: 1.1,
             }}
           >
-            {recommended.name}
+            {hero.name}
           </div>
           <p
-            className="text-[14px] mt-2"
+            className="text-[13px] mt-1.5"
             style={{
               color: CREAM_DIM,
               fontFamily: "Inter, system-ui, sans-serif",
             }}
           >
-            {recommended.subtitle}
+            {hero.subtitle}
           </p>
           <p
-            className="text-[13.5px] mt-4 leading-relaxed"
+            className="text-[12.5px] mt-2.5 leading-snug line-clamp-2"
             style={{
               color: CREAM_DIM,
               fontFamily: "Inter, system-ui, sans-serif",
             }}
           >
-            {recommended.synopsis}
+            {hero.synopsis}
           </p>
-          {recommendedMatch.matchedSkills.length > 0 && (
+          {heroMatch.matchedSkills.length > 0 && (
             <div
-              className="mt-5 pt-4"
+              className="mt-3 pt-3"
               style={{
                 borderTop: "1px dashed rgba(237,230,210,0.18)",
               }}
             >
               <div
-                className="text-[9.5px] tracking-[0.22em] uppercase mb-2"
+                className="text-[9.5px] tracking-[0.22em] uppercase mb-1.5"
                 style={{
                   color: CREAM_VDIM,
                   fontFamily: "'Space Mono', monospace",
@@ -1055,10 +1035,10 @@ function PickerOverlay({
                 Probes your focus on
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {recommendedMatch.matchedSkills.slice(0, 4).map((skill) => (
+                {heroMatch.matchedSkills.slice(0, 4).map((skill) => (
                   <span
                     key={skill}
-                    className="inline-flex items-center px-2.5 py-1 text-[11px]"
+                    className="inline-flex items-center px-2 py-0.5 text-[10.5px]"
                     style={{
                       border: `1px dashed ${ACCENT}66`,
                       color: CREAM,
@@ -1073,19 +1053,19 @@ function PickerOverlay({
               </div>
             </div>
           )}
-        </motion.button>
+        </motion.div>
 
         {/* Alternates */}
-        <div className="mt-7">
+        <div className="mt-4">
           <div
-            className="text-[10px] tracking-[0.22em] uppercase mb-3"
+            className="text-[10px] tracking-[0.22em] uppercase mb-2"
             style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
           >
-            Or pick a different incident
+            Or pick a different Arena
           </div>
-          <div className="flex flex-col gap-2">
-            {others.map((sc, i) => {
-              const isSelected = selectedId === sc.id;
+          <div className="flex flex-col gap-1.5">
+            {alternates.map((sc, i) => {
+              const isRecommended = sc.id === recommendedId;
               return (
                 <motion.button
                   key={sc.id}
@@ -1094,36 +1074,48 @@ function PickerOverlay({
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{
-                    duration: 0.4,
-                    delay: 0.35 + i * 0.08,
+                    duration: 0.32,
+                    delay: 0.08 + i * 0.06,
                     ease: [0.22, 1, 0.36, 1],
                   }}
-                  className="text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between gap-4"
+                  className="text-left px-4 py-2 rounded-xl transition-all flex items-center justify-between gap-4 hover:bg-white/[0.04]"
                   style={{
-                    background: isSelected
-                      ? "rgba(224,135,99,0.06)"
-                      : "rgba(20,22,28,0.55)",
-                    border: isSelected
-                      ? `1px solid ${ACCENT}`
-                      : "1px solid rgba(237,230,210,0.08)",
+                    background: "rgba(20,22,28,0.55)",
+                    border: "1px solid rgba(237,230,210,0.08)",
                     backdropFilter: "blur(12px)",
                     WebkitBackdropFilter: "blur(12px)",
                   }}
                 >
                   <div className="min-w-0 flex-1">
-                    <div
-                      className="truncate"
-                      style={{
-                        fontFamily: "'Instrument Serif', Georgia, serif",
-                        fontSize: "18px",
-                        color: CREAM,
-                        letterSpacing: "-0.005em",
-                      }}
-                    >
-                      {sc.name}
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="truncate"
+                        style={{
+                          fontFamily: "'Instrument Serif', Georgia, serif",
+                          fontSize: "16px",
+                          color: CREAM,
+                          letterSpacing: "-0.005em",
+                        }}
+                      >
+                        {sc.name}
+                      </div>
+                      {isRecommended && (
+                        <span
+                          className="text-[8.5px] tracking-[0.22em] uppercase px-1.5 py-0.5 shrink-0"
+                          style={{
+                            color: ACCENT,
+                            background: "rgba(224,135,99,0.08)",
+                            border: `1px solid ${ACCENT}66`,
+                            borderRadius: 999,
+                            fontFamily: "'Space Mono', monospace",
+                          }}
+                        >
+                          Recommended
+                        </span>
+                      )}
                     </div>
                     <div
-                      className="text-[12.5px] mt-0.5 truncate"
+                      className="text-[11.5px] mt-0.5 truncate"
                       style={{
                         color: CREAM_DIM,
                         fontFamily: "Inter, system-ui, sans-serif",
@@ -1144,14 +1136,14 @@ function PickerOverlay({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.7 }}
-          className="mt-8 pt-5 flex items-center justify-between gap-4"
+          className="mt-5 pt-4 flex items-center justify-between gap-4"
           style={{ borderTop: "1px dashed rgba(237,230,210,0.18)" }}
         >
           <span
             className="text-[10.5px] tracking-[0.22em] uppercase"
             style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
           >
-            {selectedId === recommended.id
+            {isRecommendedHero
               ? "Custom-built selection"
               : "Alternate selection"}
           </span>
@@ -1172,7 +1164,7 @@ function PickerOverlay({
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Launch incident
+            Launch Arena
             <span
               className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-transform group-hover:translate-x-0.5"
               style={{ background: SKY, color: ACCENT }}
