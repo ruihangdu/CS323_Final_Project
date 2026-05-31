@@ -428,20 +428,8 @@ export default function ConstellationPage() {
               className="text-[10.5px] tracking-[0.22em] uppercase"
               style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
             >
-              Skill graph · session 01
+              Skill graph
             </div>
-            <h2
-              className="mt-2 leading-[1.05]"
-              style={{
-                fontFamily: "'Instrument Serif', Georgia, serif",
-                fontSize: "30px",
-                fontWeight: 400,
-                color: CREAM,
-                letterSpacing: "-0.012em",
-              }}
-            >
-              Five nodes. One <em style={{ color: ACCENT, fontStyle: "italic" }}>focus.</em>
-            </h2>
           </div>
 
           <div>
@@ -581,8 +569,7 @@ function TopStrip({
               borderLeft: "1px solid rgba(237,230,210,0.10)",
             }}
           >
-            Constellation · {roleTitle}
-            {company ? ` · ${company}` : ""}
+            {company || "Your company"}
           </span>
         </div>
         <button

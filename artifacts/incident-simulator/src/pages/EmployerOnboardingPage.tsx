@@ -140,6 +140,89 @@ const CUSTOM_PRESET: RolePreset = {
   ],
 };
 
+// Keyword triggers per skill. Substring-match against the description (lowercased).
+// Skills whose keyword list intersects the description get pre-selected.
+const SKILL_KEYWORDS: Record<string, string[]> = {
+  // Software Engineer
+  "Debugging under pressure": ["debug", "bug", "outage", "incident", "fire", "crash", "production issue", "broken"],
+  "Codebase fluency": ["codebase", "code base", "navigate", "unfamiliar", "legacy", "existing system", "inherit"],
+  "Architecture intuition": ["architect", "design system", "scale", "infrastructure", "distributed"],
+  "Tradeoff reasoning": ["tradeoff", "trade-off", "balance", "decide", "decision", "choice"],
+  "Production safety": ["production", "deploy", "ship", "rollout", "rollback", "safe"],
+  "AI tool judgment": ["ai", "llm", "copilot", "claude", "chatgpt", "model", "agent"],
+  "Reading unfamiliar code": ["unfamiliar", "legacy", "read code", "inherit", "existing"],
+  "Root-cause analysis": ["root cause", "root-cause", "diagnose", "investigate", "why did"],
+
+  // Product Designer
+  "Design system architecture": ["design system", "component library", "tokens", "primitives"],
+  "Stakeholder pushback": ["pushback", "push back", "say no", "scope creep"],
+  "Taste & visual judgment": ["taste", "visual", "aesthetic", "craft"],
+  "Cross-functional alignment": ["cross-functional", "cross functional", "align", "stakeholder"],
+  "AI-assisted craft": ["ai", "augment", "tool", "copilot"],
+  "Design critique": ["critique", "feedback", "review"],
+  "Systems thinking": ["holistic", "systems thinking"],
+
+  // PM
+  "Strategic tradeoffs": ["strategic", "tradeoff", "balance"],
+  "User research synthesis": ["user research", "research", "interview", "synthesi"],
+  "Communication & influence": ["communicat", "influence", "persuade"],
+  "AI-assisted roadmapping": ["roadmap", "ai"],
+  "Saying no": ["say no", "scope", "cut", "what not to build"],
+  "Hypothesis design": ["hypothesi", "experiment", "test"],
+
+  // Chief of Staff
+  "Triage under ambiguity": ["triage", "priorit", "ambig"],
+  "Executive communication": ["executive", "ceo", "exec", "board"],
+  "Cross-functional orchestration": ["cross-functional", "orchestrat", "coordinat"],
+  "Crisis judgment": ["crisis", "emergency", "urgent", "incident"],
+  "Stakeholder management": ["stakeholder", "manag"],
+  "Strategic synthesis": ["strategic", "synthesi"],
+  "Discreet handling": ["discreet", "confidential", "sensitive"],
+  "Operating cadence": ["cadence", "ritual", "ceremony", "meeting"],
+
+  // Founding Marketer
+  "Positioning judgment": ["position", "message", "narrative"],
+  "Channel experimentation": ["channel", "experiment", "growth"],
+  "Copywriting under constraint": ["copy", "writ", "constrain", "budget"],
+  "Quantitative reasoning": ["quantitative", "numbers", "metrics", "data"],
+  "Speed vs. quality tradeoffs": ["speed", "fast", "quality", "ship"],
+  "AI-assisted content": ["ai", "content", "generate"],
+  "Brand voice": ["brand", "voice", "tone"],
+  "Iterating on hypotheses": ["hypothes", "iterate", "experiment"],
+
+  // Operations Lead
+  "Process design": ["process", "workflow", "procedure"],
+  "Prioritization across functions": ["priorit", "function"],
+  "Vendor negotiation": ["vendor", "negotiat", "contract"],
+  "Compliance judgment": ["complianc", "audit", "regulat"],
+  "Automation tradeoffs": ["automat", "manual"],
+  "Internal communication": ["internal", "communicat"],
+  "Risk assessment": ["risk", "assess"],
+
+  // Custom / universal
+  "Prioritization under ambiguity": ["priorit", "ambig", "unclear", "what to build"],
+  "Stakeholder communication": ["stakeholder", "communicat", "explain"],
+  "Judgment under pressure": ["pressure", "stress", "urgent", "high-stakes"],
+  "Cross-functional collaboration": ["cross-functional", "collaborat"],
+  "AI tool fluency": ["ai", "tool", "llm", "model"],
+  "Crisis response": ["crisis", "emergency", "incident", "fire"],
+};
+
+function extractSkills(description: string, candidates: string[], cap = 4): string[] {
+  const text = description.toLowerCase();
+  if (text.length < 10) return [];
+  const matched: string[] = [];
+  for (const skill of candidates) {
+    const keywords = SKILL_KEYWORDS[skill];
+    if (!keywords) continue;
+    if (keywords.some((kw) => text.includes(kw))) {
+      matched.push(skill);
+    }
+    if (matched.length >= cap) break;
+  }
+  return matched;
+}
+
 function usePreloadFonts() {
   useEffect(() => {
     const href =
@@ -199,6 +282,14 @@ export default function EmployerOnboardingPage() {
     if (step === STEPS.length - 1) {
       finalize();
     } else {
+      // Auto-extract skills from the description on the way into Step 3.
+      // Only seed when the user hasn't already picked anything, so we don't
+      // overwrite a deliberate selection if they go back and revise.
+      if (step === 1 && skills.length === 0) {
+        const preset = activePreset ?? CUSTOM_PRESET;
+        const extracted = extractSkills(roleContext, preset.suggestedSkills, 4);
+        if (extracted.length > 0) setSkills(extracted);
+      }
       setStep((s) => s + 1);
     }
   }
@@ -305,10 +396,6 @@ export default function EmployerOnboardingPage() {
                     value={roleContext}
                     onChange={setRoleContext}
                     onSubmit={goNext}
-                    placeholder={
-                      activePreset?.contextPlaceholder ??
-                      CUSTOM_PRESET.contextPlaceholder
-                    }
                   />
                 )}
                 {step === 2 && (
@@ -356,7 +443,7 @@ function StepHeader({
 }: {
   index: number;
   question: React.ReactNode;
-  intent: string;
+  intent?: string;
 }) {
   return (
     <div>
@@ -379,18 +466,20 @@ function StepHeader({
       >
         {question}
       </h2>
-      <p
-        className="mt-4 max-w-[480px]"
-        style={{
-          fontFamily: "'Instrument Serif', Georgia, serif",
-          fontStyle: "italic",
-          fontSize: "17px",
-          color: CREAM_DIM,
-          lineHeight: 1.5,
-        }}
-      >
-        {intent}
-      </p>
+      {intent && (
+        <p
+          className="mt-4 max-w-[480px]"
+          style={{
+            fontFamily: "'Instrument Serif', Georgia, serif",
+            fontStyle: "italic",
+            fontSize: "17px",
+            color: CREAM_DIM,
+            lineHeight: 1.5,
+          }}
+        >
+          {intent}
+        </p>
+      )}
     </div>
   );
 }
@@ -419,10 +508,9 @@ function RoleStep({
         index={0}
         question={
           <>
-            What's the <em style={{ color: ACCENT, fontStyle: "italic" }}>role?</em>
+            What <em style={{ color: ACCENT, fontStyle: "italic" }}>role</em> are you hiring?
           </>
         }
-        intent="Pick the closest seat — we'll tune the rest of the questions to it."
       />
       <div className="mt-9 space-y-7">
         <RoleSelect
@@ -462,35 +550,29 @@ function ContextStep({
   value,
   onChange,
   onSubmit,
-  placeholder,
 }: {
   value: string;
   onChange: (s: string) => void;
   onSubmit: () => void;
-  placeholder: string;
 }) {
   return (
     <>
       <StepHeader
         index={1}
-        question={
-          <>
-            Where does <em style={{ color: ACCENT, fontStyle: "italic" }}>judgment</em> get tested?
-          </>
-        }
-        intent="Describe the day-to-day. The ambiguity they'll face. The tradeoffs that are theirs to make."
+        question={<>Describe your ideal hire</>}
       />
       <div className="mt-9">
         <CardTextarea
           label="Context"
           value={value}
           onChange={onChange}
-          placeholder={placeholder}
+          placeholder="Share as much detail as possible – dictate or type, we'll help you find your perfect match"
           maxLength={1200}
           rows={5}
           autoFocus
           onMetaEnter={onSubmit}
           enableMic
+          hideLabel
         />
         <Meta
           left={
@@ -524,10 +606,10 @@ function SkillsStep({
         index={2}
         question={
           <>
-            Which <em style={{ color: ACCENT, fontStyle: "italic" }}>skills</em> should we probe?
+            What <em style={{ color: ACCENT, fontStyle: "italic" }}>skills</em> should we test?
           </>
         }
-        intent="Pick from the dropdown. Two to six. Each one becomes a node in the graph."
+        intent="Pick from the dropdown. Each one helps us design your perfect hire."
       />
       <div className="mt-9">
         <SkillsPicker
@@ -976,6 +1058,7 @@ function CardTextarea({
   autoFocus,
   onMetaEnter,
   enableMic,
+  hideLabel,
 }: {
   label: string;
   value: string;
@@ -986,6 +1069,7 @@ function CardTextarea({
   autoFocus?: boolean;
   onMetaEnter?: () => void;
   enableMic?: boolean;
+  hideLabel?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   const valueRef = useRef(value);
@@ -1004,13 +1088,19 @@ function CardTextarea({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-2.5 min-h-[18px]">
-        <div
-          className="text-[10.5px] tracking-[0.22em] uppercase"
-          style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
-        >
-          {label}
-        </div>
+      <div
+        className={`flex items-center mb-2.5 min-h-[18px] ${
+          hideLabel ? "justify-start" : "justify-between"
+        }`}
+      >
+        {!hideLabel && (
+          <div
+            className="text-[10.5px] tracking-[0.22em] uppercase"
+            style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
+          >
+            {label}
+          </div>
+        )}
         {showMic && (
           <button
             type="button"
