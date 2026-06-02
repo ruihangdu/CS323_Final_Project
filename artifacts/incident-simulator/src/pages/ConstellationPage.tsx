@@ -5,10 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   SCENARIO_META,
   SCENARIO_KEYWORDS,
-  COS_SCENARIO_META,
-  COS_SCENARIO_KEYWORDS,
   PENDING_SCENARIO_KEY,
-  pickRecommendedScenario,
   scoreScenario,
   type EmployerProfile,
 } from "@/lib/scenarios";
@@ -533,15 +530,8 @@ export default function ConstellationPage() {
             key="picking"
             profile={profile}
             onLaunch={(scenarioId) => {
-              // Chief of Staff routes to the Creator HQ simulator instead.
-              // The chosen incident still gets handed off so /sim flows can
-              // pre-select; CoS just ignores it and uses its built-in scenario.
-              if (profile?.roleTitle === "Chief of Staff") {
-                window.location.href = "/cos-simulator/";
-                return;
-              }
               sessionStorage.setItem(PENDING_SCENARIO_KEY, scenarioId);
-              navigate("/sim");
+              navigate("/employer/canvas");
             }}
           />
         )}
@@ -867,19 +857,11 @@ function PickerOverlay({
   profile: Profile | null;
   onLaunch: (scenarioId: string) => void;
 }) {
-  const isForCos = profile?.roleTitle === "Chief of Staff";
-  const scenarioSet = isForCos ? COS_SCENARIO_META : SCENARIO_META;
-  const keywordSet = isForCos ? COS_SCENARIO_KEYWORDS : SCENARIO_KEYWORDS;
+  const scenarioSet = SCENARIO_META;
+  const keywordSet = SCENARIO_KEYWORDS;
 
-  const recommendedId = useMemo(
-    () =>
-      pickRecommendedScenario(
-        profile as EmployerProfile | null,
-        scenarioSet,
-        keywordSet,
-      ),
-    [profile, scenarioSet, keywordSet],
-  );
+  // Wrong Address is always the recommended scenario for the SRE demo
+  const recommendedId = "config_catastrophe";
 
   const [selectedId, setSelectedId] = useState<string>(recommendedId);
   const fallback = Object.values(scenarioSet)[0];
@@ -895,11 +877,10 @@ function PickerOverlay({
   );
   const isRecommendedHero = hero.id === recommendedId;
 
-  // If the user's selection isn't in the current scenario set (e.g. role
-  // changed back from CoS), snap to the recommended one.
+  // If the user's selection isn't in the scenario set, snap to recommended.
   useEffect(() => {
     if (!scenarioSet[selectedId]) setSelectedId(recommendedId);
-  }, [scenarioSet, selectedId, recommendedId]);
+  }, [scenarioSet, selectedId]);
 
   return (
     <motion.div
@@ -1164,7 +1145,7 @@ function PickerOverlay({
             }}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Launch Arena
+            Review Arena
             <span
               className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-transform group-hover:translate-x-0.5"
               style={{ background: SKY, color: ACCENT }}

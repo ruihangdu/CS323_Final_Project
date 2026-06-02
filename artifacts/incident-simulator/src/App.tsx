@@ -8,17 +8,23 @@ import SetupPage from "@/pages/SetupPage";
 import CustomSimulatorPage from "@/pages/CustomSimulatorPage";
 import EmployerOnboardingPage from "@/pages/EmployerOnboardingPage";
 import ConstellationPage from "@/pages/ConstellationPage";
+import LandingPage from "@/pages/LandingPage";
+import EmployerCanvasPage from "@/pages/EmployerCanvasPage";
+import ChallengePage from "@/pages/ChallengePage";
 
 const queryClient = new QueryClient();
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={SetupPage} />
+      <Route path="/" component={LandingPage} />
+      <Route path="/setup" component={SetupPage} />
       <Route path="/sim" component={SimulatorPage} />
       <Route path="/custom" component={CustomSimulatorPage} />
       <Route path="/employer" component={EmployerOnboardingPage} />
       <Route path="/employer/constellation" component={ConstellationPage} />
+      <Route path="/employer/canvas" component={EmployerCanvasPage} />
+      <Route path="/challenge" component={ChallengePage} />
       <Route component={NotFound} />
     </Switch>
   );

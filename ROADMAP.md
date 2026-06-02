@@ -77,7 +77,7 @@ That's the whole story. Everything else is future scope.
 | Feature | Implementation | Hard-code strategy |
 |---|---|---|
 | **Landing page** — employer vs. job seeker fork | New `LandingPage` at `/` | Static layout, two cards, no logic |
-| **Employer onboarding** — pre-filled with canned content | Existing `EmployerOnboardingPage` | Pre-populate Step 2 context field and Step 3 skills with a realistic blurb for a "Senior DevOps Engineer" role; company = "Acme Corp" |
+| **Employer onboarding** — pre-filled with canned content | Existing `EmployerOnboardingPage` | Pre-populate Step 2 context field and Step 3 skills with the canned SRE blurb (see below); company = "Acme Corp", role = "Site Reliability Engineer" |
 | **Constellation** — skill map review | Existing `ConstellationPage` | Already works; no changes needed |
 | **"Generate challenge"** — fake streaming generation | Canvas page | On click: show 3-second animated loading state ("Generating your scenario…") then reveal a **pre-built, hardcoded scenario JSON** as if it was just generated |
 | **Employer canvas** — Overview tab | New `/employer/canvas` page | Left sidebar (read-only conversation history for demo); right panel Overview tab showing the pre-built scenario's title, premise, key decisions, skills |
@@ -104,7 +104,7 @@ That's the whole story. Everything else is future scope.
 ### Canned Content for Demo
 
 **Pre-filled employer onboarding (Step 2 context field):**
-> "They'll inherit a distributed system running on Kubernetes across three regions. On any given week they're triaging PagerDuty alerts at 2am, reviewing infra PRs, and deciding whether a latency spike is a blip or a cascading failure in progress. The judgment we care about most: they need to know when to escalate and when to just fix it."
+> "Our business runs millions of dollars of transactions through services deployed on Kubernetes. When something breaks — and it will — we need someone who can debug fast, trace the root cause under pressure, and make the right call about how to bring things back up without making it worse. The judgment we care about most is doing the right thing when the clock is ticking and the stakes are real."
 
 **Pre-selected skills (Step 3):**
 - Debugging under pressure
@@ -122,7 +122,7 @@ Use the existing "Maint Bot Disaster" / "Wrong Address" scenario already in the 
 
 ```
 1. Land on / → click "I'm hiring"
-2. Step 1: Role = "Senior DevOps Engineer", Company = "Acme Corp"
+2. Step 1: Role = "Site Reliability Engineer", Company = "Acme Corp"
 3. Step 2: Pre-filled context blurb (can edit, doesn't matter for demo)
 4. Step 3: Pre-selected skills → click "Next"
 5. Constellation → review skill nodes → click "Generate challenge"

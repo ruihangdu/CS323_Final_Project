@@ -27,99 +27,19 @@ type RolePreset = {
 
 const ROLE_PRESETS: RolePreset[] = [
   {
-    id: "software_engineer",
-    label: "Software Engineer",
+    id: "site_reliability_engineer",
+    label: "Site Reliability Engineer",
     contextPlaceholder:
-      "They'll work across our backend, picking up tickets in a system with years of accumulated decisions. They need to read unfamiliar code, debug under pressure, decide when to fix the root cause vs. ship a patch, and use AI tools to accelerate — not replace — their judgment.",
+      "Describe what this role looks like in practice — the systems they'll own, the kind of pressure they'll face, and the tradeoffs that are theirs to make.",
     suggestedSkills: [
       "Debugging under pressure",
-      "Codebase fluency",
-      "Architecture intuition",
-      "Tradeoff reasoning",
-      "Production safety",
-      "AI tool judgment",
-      "Reading unfamiliar code",
       "Root-cause analysis",
-    ],
-  },
-  {
-    id: "chief_of_staff",
-    label: "Chief of Staff",
-    contextPlaceholder:
-      "They'll triage incoming priorities for the CEO, manage cross-team initiatives, draft communications that thread the needle on sensitive topics, and operate with high context across product, ops, and people.",
-    suggestedSkills: [
-      "Triage under ambiguity",
-      "Executive communication",
-      "Cross-functional orchestration",
-      "Crisis judgment",
-      "Stakeholder management",
-      "Strategic synthesis",
-      "Discreet handling",
-      "Operating cadence",
-    ],
-  },
-  {
-    id: "product_designer",
-    label: "Senior Product Designer",
-    contextPlaceholder:
-      "They'll own the design system across a 4-team product org. They need to decide when to bend the system for a one-off vs. hold the line, push back on PM scope creep, and use AI tools without losing taste.",
-    suggestedSkills: [
-      "Design system architecture",
-      "Prioritization under ambiguity",
-      "Stakeholder pushback",
-      "Taste & visual judgment",
-      "Cross-functional alignment",
-      "AI-assisted craft",
-      "Design critique",
-      "Systems thinking",
-    ],
-  },
-  {
-    id: "product_manager",
-    label: "Product Manager",
-    contextPlaceholder:
-      "They'll own outcomes for a product line, write specs that align cross-functional teams, decide what NOT to build, and balance customer requests against strategic direction. They make tradeoff calls with incomplete information.",
-    suggestedSkills: [
-      "Prioritization under ambiguity",
-      "Strategic tradeoffs",
-      "Cross-functional alignment",
-      "User research synthesis",
-      "Communication & influence",
-      "AI-assisted roadmapping",
-      "Saying no",
-      "Hypothesis design",
-    ],
-  },
-  {
-    id: "founding_marketer",
-    label: "Founding Marketer",
-    contextPlaceholder:
-      "They'll be the only marketer for the first year. They'll figure out positioning, run growth experiments, write copy for the website and outbound, and pick between five channels with limited budget. They need to act on hypotheses faster than they can prove them.",
-    suggestedSkills: [
-      "Positioning judgment",
-      "Channel experimentation",
-      "Copywriting under constraint",
-      "Quantitative reasoning",
-      "Speed vs. quality tradeoffs",
-      "AI-assisted content",
-      "Brand voice",
-      "Iterating on hypotheses",
-    ],
-  },
-  {
-    id: "operations_lead",
-    label: "Operations Lead",
-    contextPlaceholder:
-      "They'll own internal systems — finance, HR, vendors, compliance. They'll spot process problems before they become urgent, prioritize across competing requests from leadership, and decide which manual processes to automate vs. live with.",
-    suggestedSkills: [
-      "Process design",
-      "Prioritization across functions",
-      "Vendor negotiation",
-      "Compliance judgment",
-      "Systems thinking",
-      "Automation tradeoffs",
-      "Internal communication",
-      "Risk assessment",
+      "Production safety",
+      "Incident communication",
+      "On-call judgment",
+      "Infrastructure intuition",
+      "Blast radius assessment",
+      "Recovery decision-making",
     ],
   },
 ];
@@ -245,14 +165,11 @@ export default function EmployerOnboardingPage() {
   const [step, setStep] = useState(0);
   const directionRef = useRef(1);
 
-  const defaultSweRole = ROLE_PRESETS.find((r) => r.id === "software_engineer");
-  const [selectedRoleId, setSelectedRoleId] = useState<string>("software_engineer");
-  const [roleTitle, setRoleTitle] = useState(defaultSweRole?.label ?? "");
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("site_reliability_engineer");
+  const [roleTitle, setRoleTitle] = useState("Site Reliability Engineer");
   const [company, setCompany] = useState("");
   const [roleContext, setRoleContext] = useState("");
-  const [skills, setSkills] = useState<string[]>(
-    defaultSweRole?.suggestedSkills.slice(0, 3) ?? [],
-  );
+  const [skills, setSkills] = useState<string[]>([]);
 
   const activePreset: RolePreset | null = useMemo(() => {
     if (!selectedRoleId) return null;
@@ -262,15 +179,12 @@ export default function EmployerOnboardingPage() {
 
   function pickRole(id: string) {
     setSelectedRoleId(id);
+    setSkills([]);
     if (id === "custom") {
       setRoleTitle("");
-      setSkills([]);
     } else {
       const preset = ROLE_PRESETS.find((r) => r.id === id);
-      if (preset) {
-        setRoleTitle(preset.label);
-        setSkills(preset.suggestedSkills.slice(0, 3));
-      }
+      if (preset) setRoleTitle(preset.label);
     }
   }
 
@@ -287,13 +201,10 @@ export default function EmployerOnboardingPage() {
     if (step === STEPS.length - 1) {
       finalize();
     } else {
-      // Auto-extract skills from the description on the way into Step 3.
-      // Only seed when the user hasn't already picked anything, so we don't
-      // overwrite a deliberate selection if they go back and revise.
-      if (step === 1 && skills.length === 0) {
+      if (step === 1) {
+        // Simulate AI extraction: pre-populate skills from the role preset
         const preset = activePreset ?? CUSTOM_PRESET;
-        const extracted = extractSkills(roleContext, preset.suggestedSkills, 4);
-        if (extracted.length > 0) setSkills(extracted);
+        setSkills(preset.suggestedSkills.slice(0, 5));
       }
       setStep((s) => s + 1);
     }
@@ -406,12 +317,8 @@ export default function EmployerOnboardingPage() {
                 {step === 2 && (
                   <SkillsStep
                     skills={skills}
-                    toggleSkill={toggleSkill}
                     addCustomSkill={addCustomSkill}
                     removeSkill={removeSkill}
-                    suggestions={
-                      (activePreset ?? CUSTOM_PRESET).suggestedSkills
-                    }
                   />
                 )}
               </motion.div>
@@ -594,43 +501,161 @@ function ContextStep({
 
 function SkillsStep({
   skills,
-  toggleSkill,
   addCustomSkill,
   removeSkill,
-  suggestions,
 }: {
   skills: string[];
-  toggleSkill: (s: string) => void;
   addCustomSkill: (s: string) => void;
   removeSkill: (s: string) => void;
-  suggestions: string[];
 }) {
+  const [isExtracting, setIsExtracting] = useState(true);
+  const [customText, setCustomText] = useState("");
+  const [customFocused, setCustomFocused] = useState(false);
+  const atMax = skills.length >= 6;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsExtracting(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  function commitCustom() {
+    const trimmed = customText.trim();
+    if (trimmed && !skills.includes(trimmed) && !atMax) {
+      addCustomSkill(trimmed);
+      setCustomText("");
+    }
+  }
+
+  if (isExtracting) {
+    return (
+      <>
+        <StepHeader
+          index={2}
+          question={
+            <>
+              Extracting <em style={{ color: ACCENT, fontStyle: "italic" }}>skills</em> from your context…
+            </>
+          }
+          intent="Reading what you wrote and mapping it to testable dimensions."
+        />
+        <div className="mt-9 space-y-3">
+          {[68, 82, 54, 74, 60].map((w, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.25, 0.55, 0.25] }}
+              transition={{ duration: 1.4, repeat: Infinity, delay: i * 0.15 }}
+              className="h-8 rounded-full"
+              style={{ width: `${w}%`, background: "rgba(237,230,210,0.08)" }}
+            />
+          ))}
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <StepHeader
         index={2}
         question={
           <>
-            What <em style={{ color: ACCENT, fontStyle: "italic" }}>skills</em> should we test?
+            Which <em style={{ color: ACCENT, fontStyle: "italic" }}>skills</em> should we probe?
           </>
         }
-        intent="Pick from the dropdown. Each one helps us design your perfect hire."
+        intent="We extracted these from your context. Remove any that don't fit — or add what we missed."
       />
       <div className="mt-9">
-        <SkillsPicker
-          selected={skills}
-          suggestions={suggestions}
-          onToggle={toggleSkill}
-          onAddCustom={addCustomSkill}
-          onRemove={removeSkill}
-          max={6}
-        />
+        {/* AI-extracted label */}
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="w-3 h-3" style={{ color: ACCENT }} />
+          <span
+            className="text-[10.5px] tracking-[0.22em] uppercase"
+            style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
+          >
+            Extracted from context
+          </span>
+        </div>
+
+        {/* Extracted skill chips */}
+        <div className="flex flex-wrap gap-2 mb-7">
+          <AnimatePresence initial={false}>
+            {skills.map((s) => (
+              <motion.span
+                key={s}
+                layout
+                initial={{ opacity: 0, scale: 0.88 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.88 }}
+                transition={{ duration: 0.2 }}
+                className="inline-flex items-center gap-2 px-3 py-1.5 text-[12.5px]"
+                style={{
+                  border: "1px solid rgba(224,135,99,0.40)",
+                  color: CREAM,
+                  fontFamily: "'Space Mono', monospace",
+                  borderRadius: 999,
+                  background: "rgba(224,135,99,0.07)",
+                }}
+              >
+                {s}
+                <button
+                  type="button"
+                  onClick={() => removeSkill(s)}
+                  aria-label={`Remove ${s}`}
+                  className="opacity-40 hover:opacity-90 transition-opacity"
+                  style={{ color: CREAM }}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </motion.span>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Free-form addition */}
+        {!atMax && (
+          <div>
+            <div
+              className="text-[10.5px] tracking-[0.22em] uppercase mb-2.5"
+              style={{ color: CREAM_VDIM, fontFamily: "'Space Mono', monospace" }}
+            >
+              Add a skill we missed
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                onFocus={() => setCustomFocused(true)}
+                onBlur={() => setCustomFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); commitCustom(); }
+                }}
+                placeholder="e.g. Capacity planning"
+                maxLength={60}
+                className="flex-1 bg-transparent border-0 outline-none pb-2 text-[16px]"
+                style={{
+                  color: CREAM,
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  borderBottom: `1px solid ${customFocused ? CREAM : "rgba(237,230,210,0.20)"}`,
+                  transition: "border-color 140ms",
+                }}
+              />
+              {customText.trim() && (
+                <button
+                  type="button"
+                  onClick={commitCustom}
+                  className="text-[10.5px] tracking-[0.22em] uppercase"
+                  style={{ color: ACCENT, fontFamily: "'Space Mono', monospace" }}
+                >
+                  Add
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <Meta
-          left={
-            skills.length < 2
-              ? `${2 - skills.length} more to continue`
-              : "Enough to map."
-          }
+          left={skills.length < 2 ? `${2 - skills.length} more to continue` : "Ready."}
           right={`${skills.length} / 6`}
         />
       </div>
