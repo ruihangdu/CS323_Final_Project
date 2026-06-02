@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Terminal, CheckCircle2, RotateCcw, Send, Activity,
-  ShieldAlert, Zap, Clock, Shield, TrendingUp, Settings,
+  ShieldAlert, Zap, Clock, Shield,
   FlaskConical, Siren,
 } from "lucide-react";
 import {
@@ -758,8 +758,8 @@ function ActionPanel({ state }: { state: SimulatorState }) {
       disabled={isTaken || disabled || takeAction.isPending || state.incidentClosed}
       data-testid={`btn-action-${id}`}
     >
-      {isTaken ? <CheckCircle2 className="w-3 h-3 mr-2" /> : <div className="w-3 h-3 mr-2 opacity-50 border border-current rounded-full" />}
-      {label}
+      {isTaken ? <CheckCircle2 className="w-3 h-3 mr-2 shrink-0" /> : <div className="w-3 h-3 mr-2 shrink-0 opacity-50 border border-current rounded-full" />}
+      <span className="truncate">{label}</span>
     </Button>
   );
 
@@ -1185,7 +1185,7 @@ export default function SimulatorPage() {
   const [sessionKey, setSessionKey] = useState(0);
   const [debriefDismissed, setDebriefDismissed] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const { companyName, companySlug, cosUrl, brand } = useBranding();
+  const { companyName, companySlug, brand } = useBranding();
 
   const { data: state, isLoading } = useGetSimulatorState({
     query: { refetchInterval: 3000, queryKey: getGetSimulatorStateQueryKey() }
@@ -1216,8 +1216,8 @@ export default function SimulatorPage() {
 
   const scenarioMeta = SCENARIO_META[state.scenarioId];
   const displayTime = state.scenarioSelected
-    ? addSecondsToTime(state.time, elapsedSeconds)
-    : state.time;
+    ? addSecondsToTime("00:00", elapsedSeconds)
+    : "00:00:00";
 
   return (
     <div className="h-screen w-full flex flex-col bg-background text-foreground overflow-hidden font-sans">
@@ -1251,10 +1251,6 @@ export default function SimulatorPage() {
           ) : (
             <Badge variant="destructive" className="animate-pulse font-bold px-3 py-1">INCIDENT ACTIVE</Badge>
           )}
-          <Button variant="outline" size="sm" onClick={() => { window.location.href = "/"; }}
-            className="font-mono text-xs border-border text-muted-foreground hover:text-foreground">
-            <Settings className="w-3 h-3 mr-2" /> Configure
-          </Button>
           <Button variant="outline" size="sm" onClick={handleReset} data-testid="btn-reset" className="font-mono text-xs">
             <RotateCcw className="w-3 h-3 mr-2" /> RESET
           </Button>
