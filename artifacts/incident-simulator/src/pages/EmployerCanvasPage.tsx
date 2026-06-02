@@ -279,6 +279,8 @@ function LeftSidebar({ profile }: { profile: StoredProfile | null }) {
           display: "flex",
           flexDirection: "column",
           gap: "8px",
+          minWidth: 0,
+          overflow: "hidden",
         }}
       >
         <div
@@ -293,12 +295,15 @@ function LeftSidebar({ profile }: { profile: StoredProfile | null }) {
         >
           Original request
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
           <div
             style={{
               fontFamily: "'Space Mono', monospace",
               fontSize: "11px",
               color: CREAM_HEX,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             <span style={{ color: CREAM_MUTED }}>Role: </span>
@@ -311,7 +316,13 @@ function LeftSidebar({ profile }: { profile: StoredProfile | null }) {
               fontSize: "12px",
               color: CREAM_MUTED,
               lineHeight: 1.5,
-            }}
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            } as React.CSSProperties}
           >
             <span style={{ color: CREAM_MUTED, fontFamily: "'Space Mono', monospace", fontSize: "11px" }}>Context: </span>
             {truncatedContext}
@@ -322,6 +333,8 @@ function LeftSidebar({ profile }: { profile: StoredProfile | null }) {
               fontSize: "10px",
               color: CREAM_MUTED,
               lineHeight: 1.6,
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
             }}
           >
             <span style={{ display: "block", marginBottom: "2px" }}>Generated scenario for:</span>
@@ -331,51 +344,37 @@ function LeftSidebar({ profile }: { profile: StoredProfile | null }) {
       </div>
 
       {/* Quick-action chips */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <div
-          style={{
-            overflowX: "auto",
-            display: "flex",
-            gap: "8px",
-            paddingBottom: "4px",
-          }}
-        >
-          {chips.map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              disabled
-              style={{
-                flexShrink: 0,
-                padding: "6px 14px",
-                borderRadius: "999px",
-                border: BORDER,
-                background: "transparent",
-                color: CREAM_MUTED,
-                fontFamily: "'Space Mono', monospace",
-                fontSize: "10px",
-                letterSpacing: "0.08em",
-                opacity: 0.4,
-                cursor: "not-allowed",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-        <p
-          style={{
-            fontFamily: "'Space Mono', monospace",
-            fontSize: "9px",
-            color: CREAM_MUTED,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            margin: 0,
-          }}
-        >
-          Refinement available in MVP
-        </p>
+      <div
+        style={{
+          overflowX: "auto",
+          display: "flex",
+          gap: "8px",
+          paddingBottom: "4px",
+        }}
+      >
+        {chips.map((chip) => (
+          <button
+            key={chip}
+            type="button"
+            disabled
+            style={{
+              flexShrink: 0,
+              padding: "6px 14px",
+              borderRadius: "999px",
+              border: BORDER,
+              background: "transparent",
+              color: CREAM_MUTED,
+              fontFamily: "'Space Mono', monospace",
+              fontSize: "10px",
+              letterSpacing: "0.08em",
+              opacity: 0.4,
+              cursor: "not-allowed",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {chip}
+          </button>
+        ))}
       </div>
 
       {/* Textarea */}
@@ -624,8 +623,7 @@ function OverviewTab() {
 
 // ── Live preview tab ──────────────────────────────────────────────────────
 function LivePreviewTab() {
-  const iframeSrc =
-    "/sim?company=Acme+Corp&color=142+76%25+45%25&fg=0+0%25+100%25&brand=dev";
+  const iframeSrc = "/sim?company=Acme+Corp&brand=dev";
 
   return (
     <div
