@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Loader2, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -624,6 +624,23 @@ function OverviewTab() {
 // ── Live preview tab ──────────────────────────────────────────────────────
 function LivePreviewTab() {
   const iframeSrc = "/sim?company=Acme+Corp&brand=dev";
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    function updateScale() {
+      const el = containerRef.current;
+      if (!el) return;
+      // SimulatorPage is designed for a ~1280px-wide full-viewport layout.
+      // Scale it down so it fits inside the preview panel proportionally.
+      const designWidth = 1280;
+      setScale(el.offsetWidth / designWidth);
+    }
+    updateScale();
+    const ro = new ResizeObserver(updateScale);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <div
@@ -648,17 +665,33 @@ function LivePreviewTab() {
       >
         👁 Employer Preview · Candidates won't see this bar
       </div>
-      {/* iframe */}
-      <iframe
-        src={iframeSrc}
-        title="Simulator preview"
+
+      {/* Scaled iframe container */}
+      <div
+        ref={containerRef}
         style={{
-          width: "100%",
-          height: "calc(100vh - 52px - 40px - 44px)",
-          border: "none",
           flex: 1,
+          overflow: "hidden",
+          position: "relative",
         }}
-      />
+      >
+        <iframe
+          src={iframeSrc}
+          title="Simulator preview"
+          style={{
+            // The iframe element is inflated by 1/scale so its internal
+            // layout renders at full resolution, then shrunk visually.
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: scale > 0 ? `${100 / scale}%` : "100%",
+            height: scale > 0 ? `${100 / scale}%` : "100%",
+            border: "none",
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+        />
+      </div>
     </div>
   );
 }
