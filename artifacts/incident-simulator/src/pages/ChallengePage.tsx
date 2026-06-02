@@ -210,9 +210,7 @@ function OrientationScreen({ payload }: { payload: ChallengePayload }) {
   const [, navigate] = useLocation();
 
   function handleStart() {
-    navigate(
-      `/sim?company=${encodeURIComponent(payload.company)}&color=142+76%25+45%25&fg=0+0%25+100%25&brand=dev`
-    );
+    navigate(`/sim?company=${encodeURIComponent(payload.company)}&brand=dev`);
   }
 
   return (
