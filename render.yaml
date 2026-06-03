@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: arena
+    runtime: node
+    plan: free
+    healthCheckPath: /api/healthz
+    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && PORT=5173 BASE_PATH=/ API_PORT=10000 COS_PORT=5174 pnpm --filter @workspace/incident-simulator run build && PORT=5174 BASE_PATH=/cos-simulator/ API_PORT=10000 pnpm --filter @workspace/cos-simulator run build && pnpm --filter @workspace/api-server run build
+    startCommand: pnpm --filter @workspace/api-server run start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
