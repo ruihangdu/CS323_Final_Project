@@ -17,7 +17,7 @@ const queryClient = new QueryClient();
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={EmployerOnboardingPage} />
+      <Route path="/" component={LandingPage} />
       <Route path="/landing" component={LandingPage} />
       <Route path="/setup" component={SetupPage} />
       <Route path="/sim" component={SimulatorPage} />

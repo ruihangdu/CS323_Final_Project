@@ -368,7 +368,7 @@ function LeftSidebar({ profile }: { profile: StoredProfile | null }) {
               fontSize: "10px",
               letterSpacing: "0.08em",
               opacity: 0.4,
-              cursor: "not-allowed",
+              cursor: "default",
               whiteSpace: "nowrap",
             }}
           >
@@ -392,7 +392,7 @@ function LeftSidebar({ profile }: { profile: StoredProfile | null }) {
           fontFamily: "Inter, system-ui, sans-serif",
           fontSize: "13px",
           resize: "none",
-          cursor: "not-allowed",
+          cursor: "default",
           boxSizing: "border-box",
         }}
       />
@@ -412,7 +412,7 @@ function LeftSidebar({ profile }: { profile: StoredProfile | null }) {
           fontSize: "11px",
           letterSpacing: "0.12em",
           textTransform: "uppercase",
-          cursor: "not-allowed",
+          cursor: "default",
           opacity: 0.5,
         }}
       >
