@@ -134,9 +134,11 @@ function ScenarioPickerModal({ isOpen, onSelect }: {
     });
   };
 
-  // While auto-selecting, render nothing — the page-level INITIALIZING
-  // SYSTEM splash already covers the brief window.
-  if (autoSelecting) return null;
+  // Suppress the picker on the very first render if a pending scenario is
+  // already in sessionStorage — this prevents a one-frame flash of the
+  // dialog before the useEffect fires and starts auto-selecting.
+  const hasPendingScenario = !!sessionStorage.getItem(PENDING_SCENARIO_KEY);
+  if (autoSelecting || hasPendingScenario) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={() => {}}>
@@ -1200,6 +1202,9 @@ export default function SimulatorPage() {
 
   const resetSimulator = useResetSimulator();
   const handleReset = () => {
+    // Pre-seed the pending scenario so the picker auto-selects it after reset
+    // without ever showing the picker UI to the candidate.
+    sessionStorage.setItem(PENDING_SCENARIO_KEY, "config_catastrophe");
     resetSimulator.mutate(undefined, {
       onSuccess: () => {
         setSessionKey((k) => k + 1);
@@ -1221,8 +1226,11 @@ export default function SimulatorPage() {
 
   return (
     <div className="h-screen w-full flex flex-col bg-background text-foreground overflow-hidden font-sans">
-      {/* Scenario Picker — shown when scenarioSelected is false */}
+      {/* Scenario Picker — shown when scenarioSelected is false.
+          key={sessionKey} forces a remount on every reset so autoSelecting
+          state resets to false and the sessionStorage pre-seed is re-read. */}
       <ScenarioPickerModal
+        key={sessionKey}
         isOpen={!state.scenarioSelected}
         onSelect={() => {
           setSessionKey(k => k + 1);

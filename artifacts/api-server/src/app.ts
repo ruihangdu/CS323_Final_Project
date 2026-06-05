@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -33,12 +34,20 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-const repoRoot = process.cwd();
+// Anchor to this file's location so paths work regardless of what cwd pnpm sets.
+// In production: __dirname = artifacts/api-server/dist/
+//   → ../../../  = repo root
+// In development (ts-node / tsx): __dirname = artifacts/api-server/src/
+//   → ../../../../ would be needed, but dev doesn't serve static files anyway.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
 const incidentPublicDir = path.resolve(
   repoRoot,
   "artifacts/incident-simulator/dist/public",
 );
 const cosPublicDir = path.resolve(repoRoot, "artifacts/cos-simulator/dist/public");
+
+logger.info({ repoRoot, incidentPublicDir, cosPublicDir }, "Static file paths");
 
 if (existsSync(incidentPublicDir)) {
   if (existsSync(cosPublicDir)) {
